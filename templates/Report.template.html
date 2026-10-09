@@ -1,0 +1,402 @@
+<!doctype html>
+<!--
+    Transport Sizer - HTML report template
+    Author  : Nicolas Fabert
+    Version : 1.10.0
+    Export-TsReport (src\Sizer.Report.ps1) copies this file and replaces two markers, each exactly once:
+    TITLE (text) and DATA (JSON result of Invoke-TsSizing, in the script block at the end of the body).
+    Everything else is static. Same design system as Exchange Log Report and EAS OAuth Mailbox (--cp-*).
+-->
+<html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("scoutTheme");
+    const theme = param === "light" || param === "dark" ? param : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --cp-bg: #f7f4ef; --cp-bg-elevated: #fcfbf8; --cp-surface: #ffffff; --cp-surface-soft: #f5f5f5;
+  --cp-border: #dedede; --cp-border-strong: #919191; --cp-text: #242424; --cp-text-muted: #5c5c5c; --cp-text-soft: #6f6f6f;
+  --cp-accent: #b11f4b; --cp-accent-hover: #9a1a41; --cp-accent-soft: rgba(177, 31, 75, 0.08); --cp-accent-fg: #ffffff;
+  --cp-success: #16a34a; --cp-danger: #dc2626; --cp-warning: #d97706; --cp-link: #0078d4; --cp-info: #2563eb;
+  --cp-success-soft: rgba(22,163,74,0.12); --cp-danger-soft: rgba(220,38,38,0.12); --cp-warning-soft: rgba(217,119,6,0.14); --cp-neutral-soft: rgba(120,120,120,0.12); --cp-info-soft: rgba(37,99,235,0.10);
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12); --cp-highlight: rgba(177, 31, 75, 0.12);
+  --part-1: #b11f4b; --part-2: #e0758f; --part-3: #2563eb; --part-4: #7c3aed; --part-5: #0f766e; --part-6: #d97706; --part-7: #6b7280; --part-8: #a3a3a3;
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --cp-bg: #3d3b3a; --cp-bg-elevated: #343231; --cp-surface: #292929; --cp-surface-soft: #2e2e2e;
+  --cp-border: #474747; --cp-border-strong: #5f5f5f; --cp-text: #dedede; --cp-text-muted: #919191; --cp-text-soft: #b0b0b0;
+  --cp-accent: #fd8ea1; --cp-accent-hover: #fb7b91; --cp-accent-soft: rgba(253, 142, 161, 0.14); --cp-accent-fg: #1a1a1a;
+  --cp-success: #4ade80; --cp-danger: #f87171; --cp-warning: #fbbf24; --cp-link: #4da6ff; --cp-info: #60a5fa;
+  --cp-success-soft: rgba(74,222,128,0.14); --cp-danger-soft: rgba(248,113,113,0.16); --cp-warning-soft: rgba(251,191,36,0.16); --cp-neutral-soft: rgba(200,200,200,0.12); --cp-info-soft: rgba(96,165,250,0.14);
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32); --cp-highlight: rgba(253, 142, 161, 0.12);
+  --part-1: #fd8ea1; --part-2: #f9c0cb; --part-3: #60a5fa; --part-4: #a78bfa; --part-5: #2dd4bf; --part-6: #fbbf24; --part-7: #9ca3af; --part-8: #6b7280;
+}
+* { box-sizing: border-box; }
+body { margin:0; padding:28px 32px; background:var(--cp-bg); color:var(--cp-text); font:14px "Segoe UI", Aptos, Calibri, -apple-system, BlinkMacSystemFont, sans-serif; }
+h1 { font-size:32px; font-weight:650; letter-spacing:-0.025em; margin:8px 0 12px; }
+h2 { font-size:18px; font-weight:600; margin:0 0 6px; }
+h3 { font-size:14px; font-weight:600; margin:18px 0 8px; }
+p { line-height:1.5; margin:8px 0; } .muted, small { color:var(--cp-text-muted); }
+a { color:var(--cp-link); } [hidden] { display:none !important; }
+header { position:relative; overflow:hidden; border:1px solid var(--cp-border); border-top:4px solid var(--cp-accent); border-radius:16px; padding:24px; margin-bottom:20px; background:linear-gradient(125deg,var(--cp-surface) 35%,var(--cp-accent-soft)); }
+header::before { content:""; position:absolute; width:280px; height:280px; right:-100px; top:-160px; border:40px solid var(--cp-highlight); border-radius:50%; pointer-events:none; }
+.hero-top { position:relative; display:flex; justify-content:space-between; gap:24px; align-items:flex-start; flex-wrap:wrap; }
+#origin { color:var(--cp-accent); font-size:11px; letter-spacing:0.1em; text-transform:uppercase; font-weight:700; }
+.subtitle { color:var(--cp-text-muted); max-width:820px; }
+.period { min-width:300px; padding:12px 16px; border:1px solid var(--cp-border); border-radius:0.625rem; background:var(--cp-surface); }
+.label { font-size:11px; color:var(--cp-accent); font-weight:700; letter-spacing:0.08em; text-transform:uppercase; display:block; margin-bottom:8px; }
+#meta { font-size:13px; line-height:1.6; }
+.metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin:20px 0 4px; position:relative; }
+.tile { position:relative; overflow:hidden; padding:18px 20px; border:1px solid var(--cp-border); border-radius:16px; background:var(--cp-surface); transition:transform 160ms ease,border-color 160ms ease; }
+.tile:hover { transform:translateY(-3px); border-color:var(--cp-accent); }
+.tile::after { content:""; position:absolute; width:80px; height:80px; right:-28px; bottom:-32px; border:14px solid var(--cp-highlight); border-radius:50%; pointer-events:none; }
+.tile-primary { background:linear-gradient(125deg,var(--cp-accent-hover),var(--cp-accent)); border-color:var(--cp-accent); color:var(--cp-accent-fg); }
+.tile-label { display:block; font-size:12px; font-weight:600; margin-bottom:12px; }
+.tile strong { display:block; font-size:30px; font-weight:650; letter-spacing:-0.025em; font-variant-numeric:tabular-nums; }
+.tile strong .unit { font-size:15px; font-weight:600; margin-left:4px; }
+.tile small { display:block; margin-top:8px; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .tile-primary small { color:var(--cp-accent-fg); }
+.tile.missing strong { color:var(--cp-text-muted); font-size:22px; }
+.block { background:var(--cp-surface); border:1px solid var(--cp-border); border-radius:16px; padding:20px; margin-bottom:20px; }
+.caption { font-size:13px; color:var(--cp-text-muted); margin:0 0 14px; max-width:980px; }
+.pill { display:inline-block; padding:1px 9px; border-radius:999px; background:var(--cp-neutral-soft); color:var(--cp-text); font-size:12px; line-height:20px; font-weight:600; white-space:nowrap; }
+.pill.good { background:var(--cp-success-soft); color:var(--cp-success); } .pill.bad { background:var(--cp-danger-soft); color:var(--cp-danger); } .pill.warn { background:var(--cp-warning-soft); color:var(--cp-warning); } .pill.info { background:var(--cp-info-soft); color:var(--cp-info); } .pill.accent { background:var(--cp-accent-soft); color:var(--cp-accent); }
+.kind-Input { background:var(--cp-neutral-soft); } .kind-Computed { background:var(--cp-accent-soft); color:var(--cp-accent); } .kind-Microsoft { background:var(--cp-info-soft); color:var(--cp-info); }
+.kind-Lab, .kind-Calibration { background:var(--cp-success-soft); color:var(--cp-success); } .kind-Assumption { background:var(--cp-warning-soft); color:var(--cp-warning); } .kind-Rule { background:rgba(124,58,237,0.12); color:#7c3aed; }
+html[data-theme="dark"] .kind-Rule { color:#a78bfa; }
+.notice { position:relative; margin:0 0 10px; padding:10px 14px; border-radius:10px; border-left:4px solid var(--cp-info); background:var(--cp-info-soft); }
+.notice.Warning { border-left-color:var(--cp-warning); background:var(--cp-warning-soft); } .notice.Error { border-left-color:var(--cp-danger); background:var(--cp-danger-soft); }
+.notice b { margin-right:6px; }
+table { width:100%; border-collapse:separate; border-spacing:0; }
+th, td { text-align:left; vertical-align:top; padding:9px 12px; border-bottom:1px solid var(--cp-border); }
+th { background:var(--cp-surface-soft); font-weight:600; font-size:12px; white-space:nowrap; }
+tbody tr:hover { background:var(--cp-accent-soft); }
+td { overflow-wrap:anywhere; } .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; } .mono { font-family:Consolas, "Cascadia Mono", monospace; font-size:12px; }
+.value { font-weight:650; white-space:nowrap; font-variant-numeric:tabular-nums; } .value .unit { font-weight:400; color:var(--cp-text-muted); margin-left:3px; }
+.sub { display:block; color:var(--cp-text-muted); font-size:12px; margin-top:3px; }
+.formula { color:var(--cp-text); font-size:13px; } .computation { display:block; margin-top:3px; color:var(--cp-text-muted); font-family:Consolas, "Cascadia Mono", monospace; font-size:12px; }
+.scroll { overflow:auto; border:1px solid var(--cp-border); border-radius:0.625rem; }
+details.block > summary { list-style:none; cursor:pointer; display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+details.block > summary::-webkit-details-marker { display:none; }
+details.block > summary h2::before { content:"\25B8"; display:inline-block; width:18px; color:var(--cp-accent); transition:transform 120ms ease; }
+details.block[open] > summary h2::before { transform:rotate(90deg); }
+details.block > summary .count { color:var(--cp-text-muted); font-size:12px; }
+details.block[open] > summary { margin-bottom:6px; }
+.bar { display:flex; height:22px; border-radius:8px; overflow:hidden; background:var(--cp-border); margin:6px 0 10px; }
+.bar span { display:block; height:100%; min-width:2px; }
+.legend { display:flex; flex-wrap:wrap; gap:6px 18px; font-size:12px; color:var(--cp-text-muted); }
+.legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+.grid2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+.rules { margin:4px 0 0; padding-left:20px; } .rules li { margin:4px 0; line-height:1.45; }
+.kinds { display:flex; flex-wrap:wrap; gap:8px 14px; font-size:12px; color:var(--cp-text-muted); margin-top:10px; }
+dl { display:grid; grid-template-columns:260px 1fr; gap:6px 16px; margin:0; } dt { color:var(--cp-text-muted); } dd { margin:0; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+.params { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.param-card { padding:12px 14px; border:1px solid var(--cp-border); border-radius:12px; background:linear-gradient(160deg,var(--cp-surface) 55%,var(--cp-surface-soft)); }
+.param-card h3 { margin:0 0 8px; color:var(--cp-accent); font-size:12px; text-transform:uppercase; letter-spacing:0.06em; }
+.param-card dl { grid-template-columns:1fr auto; font-size:13px; } .param-card dd { text-align:right; }
+.status-ok { color:var(--cp-success); } .status-missing, .status-partial { color:var(--cp-warning); } .status-warning { color:var(--cp-warning); }
+footer { color:var(--cp-text-muted); font-size:12px; text-align:center; margin-top:8px; }
+.toolbar { position:relative; display:flex; gap:8px; justify-content:flex-end; margin-top:-6px; }
+.toolbar button { font:inherit; font-size:12px; color:var(--cp-text); background:var(--cp-surface); border:1px solid var(--cp-border); padding:5px 10px; border-radius:0.625rem; cursor:pointer; }
+.toolbar button:hover, .toolbar .linkbtn:hover { color:var(--cp-accent); border-color:var(--cp-accent); }
+.toolbar .linkbtn { font-size:12px; color:var(--cp-text); background:var(--cp-surface); border:1px solid var(--cp-border); padding:5px 10px; border-radius:0.625rem; text-decoration:none; }
+@media (max-width: 1100px) { .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } .grid2, .params { grid-template-columns:1fr; } dl { grid-template-columns:1fr; } }
+@media print { body { background:#fff; padding:0; } .toolbar { display:none; } .block, header { break-inside:avoid; } details.block > summary h2::before { content:""; } }
+</style></head>
+<body>
+<header>
+  <div class="hero-top">
+    <div>
+      <div id="origin">Exchange &middot; Transport Sizer</div>
+      <h1 id="title">Dimensionnement</h1>
+      <p class="subtitle" id="subtitle"></p>
+      <div id="badges"></div>
+    </div>
+    <div class="period"><span class="label">Rapport</span><div id="meta"></div></div>
+  </div>
+  <div class="metrics" id="metrics"></div>
+  <div class="toolbar"><a class="linkbtn" href="TransportSizer-Synthese.html">Synthèse client</a><button type="button" id="expand">Tout déplier</button><button type="button" id="collapse">Tout replier</button><button type="button" onclick="window.print()">Imprimer</button></div>
+</header>
+
+<div id="notices"></div>
+
+<section class="block">
+  <h2>Configuration cible, par serveur</h2>
+  <p class="caption" id="config-caption"></p>
+  <div class="scroll"><table id="config"><thead><tr><th>Composant</th><th>Valeur</th><th>Détail</th></tr></thead><tbody></tbody></table></div>
+  <h3>Règles du modèle</h3>
+  <ul class="rules" id="rules"></ul>
+</section>
+
+<div class="grid2">
+  <section class="block">
+    <h2>Composition de la file d&rsquo;attente</h2>
+    <p class="caption">Contenu du dossier de la file au pire moment, par origine (Go, facteur ESE compris).</p>
+    <div class="bar" id="queue-bar"></div>
+    <div class="legend" id="queue-legend"></div>
+    <div class="scroll" style="margin-top:12px"><table id="queue-parts"><thead><tr><th>Partie</th><th class="num">Messages</th><th class="num">Go</th></tr></thead><tbody></tbody></table></div>
+  </section>
+  <section class="block">
+    <h2>Composition du volume système</h2>
+    <p class="caption" id="system-caption">Contenu du volume système (Go), avant la marge de remplissage.</p>
+    <div class="bar" id="system-bar"></div>
+    <div class="legend" id="system-legend"></div>
+    <div class="scroll" style="margin-top:12px"><table id="system-parts"><thead><tr><th>Partie</th><th class="num">Go</th></tr></thead><tbody></tbody></table></div>
+  </section>
+</div>
+
+<section class="block">
+  <h2>Flux de messages</h2>
+  <p class="caption">Trafic saisi pour l&rsquo;organisation, puis par serveur restant pendant la panne retenue, avec la croissance.</p>
+  <div class="scroll"><table id="flows"><thead><tr><th>Flux</th><th>Sens</th><th class="num">Messages / jour</th><th class="num">Avec croissance</th><th class="num">Par serveur / jour</th><th class="num">Taille (Ko)</th><th class="num">Transmissions</th><th>Retenu en panne</th><th class="num">Débit de dim. (msg/s)</th><th class="num">Mbit/s</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<div id="sections"></div>
+
+<section class="block" id="calibration-block" hidden>
+  <h2>Profil de calibration</h2>
+  <p class="caption">Mesures du serveur de référence : moyennes par palier de charge, puis modèles linéaires (consommation = ordonnée + Σ coefficient × facteur de charge). Un facteur n’a de coefficient que si les paliers l’ont fait varier indépendamment des autres.</p>
+  <dl id="calibration-meta"></dl>
+  <h3>Modèles</h3>
+  <div class="scroll"><table id="calibration-models"><thead></thead><tbody></tbody></table></div>
+  <div id="calibration-validation-block" hidden>
+    <h3>Validation</h3>
+    <p class="caption">Paliers gardés hors de l’ajustement (par exemple un mélange de tailles) : ce que prédisent les modèles, face à la mesure.</p>
+    <div class="scroll"><table id="calibration-validation"><thead><tr><th>Palier</th><th class="num">Débit (msg/s)</th><th class="num">Taille (Ko)</th><th class="num">CPU mesuré (%)</th><th class="num">CPU prédit (%)</th><th class="num">Mesure ÷ prédiction</th></tr></thead><tbody></tbody></table></div>
+  </div>
+  <h3>Paliers mesurés</h3>
+  <div class="scroll"><table id="calibration-steps"><thead></thead><tbody></tbody></table></div>
+</section>
+
+<section class="block">
+  <h2>Paramètres du scénario</h2>
+  <p class="caption">Toutes les valeurs saisies : le même fichier de scénario redonne exactement ce rapport.</p>
+  <div class="params" id="params"></div>
+</section>
+
+<section class="block">
+  <h2>Origine des valeurs</h2>
+  <div class="kinds" id="kinds"></div>
+</section>
+
+<footer id="footer"></footer>
+
+<script type="application/json" id="data">{{DATA}}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById("data").textContent);
+  const S = data.Summary || {};
+  const scenario = data.Scenario || {};
+  const nf = (v, d = 1) => (v === null || v === undefined || Number.isNaN(Number(v))) ? "—" : Number(v).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const el = (tag, attrs = {}, ...children) => {
+    const node = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v === null || v === undefined || v === false) continue;
+      if (k === "class") node.className = v; else if (k === "text") node.textContent = v; else if (k === "html") node.innerHTML = v; else node.setAttribute(k, v);
+    }
+    for (const c of children.flat()) { if (c === null || c === undefined) continue; node.append(c instanceof Node ? c : document.createTextNode(String(c))); }
+    return node;
+  };
+  const list = v => Array.isArray(v) ? v : (v === null || v === undefined ? [] : [v]);
+  const kindLabels = { Input: "Saisie", Computed: "Calcul", Microsoft: "Microsoft", Lab: "Mesure lab", Assumption: "Hypothèse", Calibration: "Calibration", Rule: "Règle" };
+  const kindHelp = {
+    Input: "valeur saisie dans le scénario", Computed: "calculée à partir des autres valeurs", Microsoft: "valeur ou formule documentée par Microsoft (Learn, calculateur)",
+    Lab: "mesurée dans le reference lab", Assumption: "hypothèse à confirmer ou à remplacer par une mesure", Calibration: "mesurée sur le serveur de référence (profil de calibration)", Rule: "règle du modèle"
+  };
+  const levelLabels = { Error: "Erreur", Warning: "Attention", Info: "Information" };
+
+  document.getElementById("title").textContent = scenario.Name || "Dimensionnement";
+  document.title = (scenario.Name || "Transport Sizer") + " · Transport Sizer";
+  if (S.RoleLabel) {
+    document.getElementById("subtitle").textContent = `${S.RoleLabel} · ${S.DeploymentLabel} · ${S.Servers} serveur(s) déployé(s) (${S.Sites} site(s) × ${S.ServersPerSite}) · dimensionné pour : ${String(S.FailureLabel).toLowerCase()}, ${S.Alive} serveur(s) restant(s).`;
+  }
+  const badges = document.getElementById("badges");
+  const reference = S.ProfileSource === "Reference";
+  badges.append(el("span", { class: "pill accent", text: S.Calibrated ? (reference ? "Profil de référence : " : "Calibré : ") + S.CalibrationName : "Non calibré" }), " ");
+  const errors = list(data.Checks).filter(c => c.Level === "Error").length, warnings = list(data.Checks).filter(c => c.Level === "Warning").length;
+  if (errors) badges.append(el("span", { class: "pill bad", text: errors + " erreur(s)" }), " ");
+  if (warnings) badges.append(el("span", { class: "pill warn", text: warnings + " point(s) d’attention" }), " ");
+  if (!errors && !warnings) badges.append(el("span", { class: "pill good", text: "Aucun point d’attention" }));
+
+  const generated = data.GeneratedAt ? new Date(data.GeneratedAt) : null;
+  const meta = document.getElementById("meta");
+  const metaRows = [["Généré le", generated ? generated.toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "—"], ["Client", scenario.Customer || "—"], ["Auteur", scenario.Author || "—"],
+    ["Profil", S.Calibrated ? S.CalibrationName + (reference ? " (référence, générique)" : "") : "aucun"], ["Outil", `${data.Tool} ${data.Version}`]];
+  for (const [k, v] of metaRows) meta.append(el("div", {}, el("span", { class: "muted", text: k + " : " }), v));
+
+  const metrics = document.getElementById("metrics");
+  const tile = (label, value, unit, note, primary, missing) => el("div", { class: "tile" + (primary ? " tile-primary" : "") + (missing ? " missing" : "") },
+    el("span", { class: "tile-label", text: label }), el("strong", {}, value, unit ? el("span", { class: "unit", text: unit }) : null), el("small", { text: note || "" }));
+  if (data.Valid) {
+    metrics.append(
+      tile("Serveurs", String(S.Servers), "", `${S.Alive} restant(s) pendant la panne`, true),
+      S.Cores !== null && S.Cores !== undefined ? tile("Processeur", String(S.Cores), S.CoreUnit, `${nf(S.CpuUtilization * 100, 0)} % au débit de dimensionnement`) : tile("Processeur", "À calibrer", "", "profil de calibration requis", false, true),
+      S.RamGB !== null && S.RamGB !== undefined ? tile("Mémoire", nf(S.RamGB, 0), "Go", "seuils back pressure respectés") : tile("Mémoire", "À calibrer", "", "profil de calibration requis", false, true),
+      tile("Débit de dimensionnement", nf(S.RateDesign, 1), "msg/s", `${nf(S.RateDesign * 3600, 0)} msg/h · ${nf(S.MessagesPerDayPerServer, 0)} msg/jour sur ${nf(S.WorkingHours ?? 24, 0)} h ouvrées`),
+      tile("Disque système", nf(S.SystemGB, 0), "Go", S.QueueOnSystem ? "file d’attente comprise" : "Windows, Exchange, journaux"),
+      S.QueueOnSystem ? tile("File d’attente", "Volume système", "", "pas de volume dédié") : tile("Volume file d’attente", nf(S.QueueVolumeGB, 0), "Go", `mail.que ${nf(S.MailQueGB, 1)} Go au pire moment`),
+      S.Iops !== null && S.Iops !== undefined ? tile("IOPS de la file", nf(S.Iops, 0), "IOPS", S.QueueWriteMBps !== null && S.QueueWriteMBps !== undefined ? `et ${nf(S.QueueWriteMBps, 1)} Mo/s en écriture` : "au débit de dimensionnement") : tile("IOPS de la file", "À calibrer", "", "profil de calibration requis", false, true),
+      tile("Réseau", nf(S.NetworkMbps, 1), "Mbit/s", `${nf(S.LinkUse, 1)} % de la carte, sens le plus chargé`)
+    );
+  }
+
+  const notices = document.getElementById("notices");
+  for (const c of list(data.Checks)) notices.append(el("div", { class: "notice " + c.Level }, el("b", { text: levelLabels[c.Level] || c.Level }), c.Message));
+
+  document.getElementById("config-caption").textContent = data.Valid
+    ? `Chacun des ${S.Servers} serveurs ${S.RoleLabel}.` + (S.Calibrated ? "" : " Les valeurs « À calibrer » demandent un profil de calibration (calibration\\Measure-TransportLoad.ps1).")
+    : "Le scénario contient une erreur : corriger les points ci-dessus.";
+  const cfg = document.querySelector("#config tbody");
+  for (const r of list(data.Config)) cfg.append(el("tr", {}, el("td", { text: r.Component }), el("td", { class: "value status-" + r.Status, text: r.Value }), el("td", { text: r.Detail })));
+  const rules = document.getElementById("rules");
+  for (const r of list(data.Rules)) rules.append(el("li", { text: r }));
+
+  const drawParts = (barId, legendId, tableId, parts, withMessages) => {
+    const total = parts.reduce((a, p) => a + (Number(p.GB) || 0), 0);
+    const bar = document.getElementById(barId), legend = document.getElementById(legendId), body = document.querySelector("#" + tableId + " tbody");
+    parts.forEach((p, i) => {
+      const color = `var(--part-${(i % 8) + 1})`;
+      if (p.GB > 0 && total > 0) bar.append(el("span", { style: `width:${(p.GB / total * 100).toFixed(3)}%;background:${color}`, title: `${p.Label} : ${nf(p.GB, 2)} Go` }));
+      legend.append(el("span", {}, el("i", { style: `background:${color}` }), `${p.Label} ${total > 0 ? nf(p.GB / total * 100, 0) : 0} %`));
+      const cells = [el("td", {}, el("i", { style: `display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;background:${color}` }), p.Label)];
+      if (withMessages) cells.push(el("td", { class: "num", text: p.Messages ? nf(p.Messages, 0) : "—" }));
+      cells.push(el("td", { class: "num", text: nf(p.GB, 2) }));
+      body.append(el("tr", {}, cells));
+    });
+    const foot = [el("td", { text: "Total" })];
+    if (withMessages) foot.push(el("td", { class: "num", text: nf(parts.reduce((a, p) => a + (Number(p.Messages) || 0), 0), 0) }));
+    foot.push(el("td", { class: "num", text: nf(total, 2) }));
+    body.append(el("tr", { style: "font-weight:600" }, foot));
+  };
+  drawParts("queue-bar", "queue-legend", "queue-parts", list(data.QueueParts), true);
+  drawParts("system-bar", "system-legend", "system-parts", list(data.SystemParts), false);
+
+  const flows = document.querySelector("#flows tbody");
+  for (const f of list(data.Flows)) {
+    flows.append(el("tr", {}, el("td", { text: f.Name }), el("td", { text: f.DirectionLabel }), el("td", { class: "num", text: nf(f.MessagesPerDay, 0) }), el("td", { class: "num", text: nf(f.WithGrowth, 0) }),
+      el("td", { class: "num", text: nf(f.PerServer, 0) }), el("td", { class: "num", text: nf(f.AverageSizeKB, 1) }), el("td", { class: "num", text: nf(f.FanOut, 2) }),
+      el("td", {}, el("span", { class: "pill " + (f.Held ? "warn" : ""), text: f.Held ? "Oui" : "Non" })), el("td", { class: "num", text: nf(f.DesignRate, 2) }), el("td", { class: "num", text: nf(f.DesignMbps, 2) })));
+  }
+
+  const host = document.getElementById("sections");
+  for (const sec of list(data.Sections)) {
+    const details = el("details", { class: "block", open: "open" });
+    const summary = el("summary", {}, el("h2", { text: sec.Title }), el("span", { class: "count", text: `${list(sec.Values).length} valeur(s)` }));
+    const table = el("table", {}, el("thead", {}, el("tr", {}, el("th", { text: "Grandeur" }), el("th", { class: "num", text: "Valeur" }), el("th", { text: "Formule et calcul" }), el("th", { text: "Origine" }))));
+    const body = el("tbody");
+    for (const v of list(sec.Values)) {
+      const label = el("td", {}, v.Label, v.Note ? el("span", { class: "sub", text: v.Note }) : null);
+      const value = el("td", { class: "num" }, el("span", { class: "value" }, v.Display, v.Unit ? el("span", { class: "unit", text: v.Unit }) : null));
+      const formula = el("td", {}, v.Formula ? el("span", { class: "formula", text: v.Formula }) : null, v.Computation ? el("span", { class: "computation", text: v.Computation + (typeof v.Value === "number" ? " = " + v.Display + (v.Unit ? " " + v.Unit : "") : "") }) : null);
+      const origin = el("td", {}, el("span", { class: "pill kind-" + v.Kind, text: kindLabels[v.Kind] || v.Kind }), v.Source ? el("span", { class: "sub", text: v.Source }) : null);
+      body.append(el("tr", { id: "v-" + v.Id }, label, value, formula, origin));
+    }
+    table.append(body);
+    details.append(summary, el("p", { class: "caption", text: sec.Intro }), el("div", { class: "scroll" }, table));
+    host.append(details);
+  }
+  document.getElementById("expand").addEventListener("click", () => document.querySelectorAll("details.block").forEach(d => d.open = true));
+  document.getElementById("collapse").addEventListener("click", () => document.querySelectorAll("details.block").forEach(d => d.open = false));
+
+  const cal = scenario.Calibration;
+  if (cal) {
+    document.getElementById("calibration-block").hidden = false;
+    const srv = cal.Server || {};
+    const metaDl = document.getElementById("calibration-meta");
+    const adj = scenario.Adjustment || {};
+    const adjText = [Number(adj.CpuPercent ?? 100) !== 100 ? `processeur ${nf(adj.CpuPercent, 0)} %` : "", Number(adj.IoPercent ?? 100) !== 100 ? `E/S ${nf(adj.IoPercent, 0)} %` : "",
+      Number(adj.MemoryAtRestGB || 0) > 0 ? `mémoire au repos ${nf(adj.MemoryAtRestGB, 1)} Go` : ""].filter(Boolean).join(" · ");
+    const rows = [["Profil", cal.Name], ["Type", cal.Reference ? "Profil de référence intégré à l’outil (mesures du labo) : dimensionnement générique, à remplacer par le profil d’un serveur du client quand il peut être mesuré" : "Profil importé, mesuré sur un serveur de référence"],
+      ["Ajustements", adjText || "aucun (profil tel que mesuré)"]].concat(cal.Notes ? [["Notes", cal.Notes]] : []).concat([["Mesuré le", cal.MeasuredAt || "—"], ["Rôle", cal.Role || "—"], ["Serveur", `${srv.Name || "—"} · ${nf(srv.LogicalProcessors, 0)} processeurs logiques${srv.Cores ? " (" + nf(srv.Cores, 0) + " cœur(s))" : ""} · ${nf(srv.MemoryGB, 0)} Go · ${srv.Virtual ? "virtuel" : "physique"}`],
+      ["Processeur", srv.Processor || "—"], ["SPECint_rate2017 par cœur", srv.SpecIntRatePerCore ? nf(srv.SpecIntRatePerCore, 2) + (srv.SpecIntNote ? " · " + srv.SpecIntNote : "") : "non renseigné"], ["Exchange", srv.ExchangeVersion || "—"],
+      ["Taille des messages de test", cal.Range && cal.Range.MaxSizeKB > 1.5 * (cal.Range.MinSizeKB || 0) ? `${nf(cal.Range.MinSizeKB, 0)} à ${nf(cal.Range.MaxSizeKB, 0)} Ko (plusieurs paliers)` : cal.MessageSizeKB ? nf(cal.MessageSizeKB, 0) + " Ko" : "—"], ["Débit le plus élevé mesuré", cal.MaxRate ? nf(cal.MaxRate, 1) + " msg/s" : "—"], ["Source", cal.Source || "—"]]);
+    if (cal.Backlog) rows.push(["Palier backlog", `${nf(cal.Backlog.Messages, 0)} messages · facteur ESE ${cal.Backlog.EseOverheadFactor > 0 ? nf(cal.Backlog.EseOverheadFactor, 2) + (cal.Backlog.EseStep ? " (palier " + cal.Backlog.EseStep + ")" : "") : "non mesuré" + (cal.Backlog.EseNote ? " (" + cal.Backlog.EseNote + ")" : "")} · ${cal.Backlog.MemoryPerKB > 0 ? nf(cal.Backlog.MemoryBaseKB, 1) + " Ko + " + nf(cal.Backlog.MemoryPerKB, 4) + " Ko par Ko de message" : nf(cal.Backlog.MemoryKBPerQueued, 1) + " Ko"} de mémoire par message en file${cal.Backlog.MemoryReference ? " (" + cal.Backlog.MemoryReference + ")" : ""}`]);
+    if (cal.Backlog && cal.Backlog.DehydratedKBPerQueued > 0) rows.push(["Déshydratation", `${nf(cal.Backlog.DehydratedKBPerQueued, 1)} Ko gardés en mémoire par message déshydraté${cal.Backlog.DehydrationMeasured === false ? " (non mesuré : analogie)" : ""}${cal.Backlog.DehydrationNote ? " · " + cal.Backlog.DehydrationNote : ""}`]);
+    if (cal.Drain && cal.Drain.CpuPercentPerMsg > 0) rows.push(["Vidange", `${nf(cal.Drain.CpuPercentPerMsg, 3)} % de CPU par message/s renvoyé depuis la file · ${nf(cal.Drain.Messages, 0)} messages à ${nf(cal.Drain.Rate, 1)} msg/s${cal.Drain.Step ? " (palier " + cal.Drain.Step + ")" : ""}${cal.Drain.Note ? " · " + cal.Drain.Note : ""}`]);
+    const range = cal.Range || {};
+    if (range.MaxSizeKB) rows.push(["Plage mesurée", `${nf(range.MinSizeKB, 0)} à ${nf(range.MaxSizeKB, 0)} Ko par message · jusqu’à ${nf(range.MaxMBps, 1)} Mo/s · ${nf(range.MaxRules, 0)} règle(s) · ${nf(range.MaxSessionsPerSec, 1)} session(s)/s${range.MaxJournalPerSec ? " · " + nf(range.MaxJournalPerSec, 1) + " rapport(s) de journal/s" : ""}`]);
+    for (const c of list(cal.Corrections)) rows.push(["Correction", `${c.Model} : ${nf(c.DeltaMB, 0)} Mo · ${c.Reason || ""}${c.Source ? " (" + c.Source + ")" : ""}`]);
+    if (cal.Retention && cal.Retention.Factor) rows.push(["Croissance de mail.que", `+${nf(cal.Retention.GrowthMB / 1024, 1)} Go pour ${nf(cal.Retention.ProcessedMB / 1024, 1)} Go de messages traités (${nf(cal.Retention.Factor, 2)} Mo par Mo), au plus ${nf(cal.Retention.MaxQueue, 0)} messages en file`]);
+    if (cal.ResidenceSeconds) rows.push(["Séjour en transit mesuré", `${nf(cal.ResidenceSeconds, 1)} s (messages en file ÷ débit, palier le plus long)`]);
+    for (const [k, v] of rows) metaDl.append(el("dt", { text: k }), el("dd", { text: v }));
+    const names = { CpuPercent: "CPU total (%)", TransportPrivateMB: "Mémoire privée EdgeTransport (Mo)", UsedMemoryMB: "Mémoire utilisée (Mo)", QueueReadIops: "Lectures/s du volume de la file", QueueWriteIops: "Écritures/s du volume de la file", QueueWriteBps: "Octets écrits/s du volume de la file", NetworkInBps: "Réseau reçu (octets/s)", NetworkOutBps: "Réseau émis (octets/s)" };
+    const terms = [["Slope", "par msg/s"], ["PerMBps", "par Mo/s"], ["PerRuleMsg", "par msg/s × règle"], ["PerSession", "par session/s"], ["PerTlsSession", "par session TLS/s"], ["PerTlsMBps", "par Mo/s en TLS"], ["PerJournal", "par rapport de journal/s"]];
+    const models = Object.entries(names).filter(([k]) => (cal.Models || {})[k]);
+    const shown = terms.filter(([t]) => t === "Slope" || models.some(([k]) => Number(cal.Models[k][t] || 0) !== 0));
+    document.querySelector("#calibration-models thead").append(el("tr", {}, [el("th", { text: "Grandeur" }), el("th", { class: "num", text: "Ordonnée" })].concat(shown.map(([, l]) => el("th", { class: "num", text: l })), [el("th", { class: "num", text: "R²" }), el("th", { class: "num", text: "Paliers" })])));
+    const mb = document.querySelector("#calibration-models tbody");
+    for (const [k, label] of models) {
+      const m = cal.Models[k];
+      mb.append(el("tr", {}, [el("td", { text: label }), el("td", { class: "num", text: nf(m.Intercept, 2) })].concat(shown.map(([t]) => el("td", { class: "num", text: Number(m[t] || 0) === 0 ? "—" : nf(m[t], Math.abs(m[t]) < 0.1 ? 4 : 3) })), [el("td", { class: "num", text: nf(m.R2, 3) }), el("td", { class: "num", text: nf(m.Points, 0) })])));
+    }
+    const validation = list(cal.Validation).filter(v => v.CpuPercent);
+    if (validation.length) {
+      document.getElementById("calibration-validation-block").hidden = false;
+      const vb = document.querySelector("#calibration-validation tbody");
+      for (const v of validation) {
+        const gap = v.CpuPercent.Predicted ? (v.CpuPercent.Measured / v.CpuPercent.Predicted - 1) * 100 : 0;
+        vb.append(el("tr", {}, el("td", { text: v.Label + (v.Saturated ? " (processeur saturé : mesure plafonnée, hors ajustement)" : "") }), el("td", { class: "num", text: nf(v.Rate, 2) }), el("td", { class: "num", text: nf(v.SizeKB, 0) }), el("td", { class: "num", text: nf(v.CpuPercent.Measured, 1) }), el("td", { class: "num", text: nf(v.CpuPercent.Predicted, 1) }), el("td", { class: "num", text: (gap >= 0 ? "+" : "") + nf(gap, 0) + " %" })));
+      }
+    }
+    const steps = list(cal.Steps);
+    if (steps.length) {
+      const cols = [["Label", "Palier", null], ["Kind", "Type", null], ["DurationSeconds", "Durée (s)", 0], ["Rate", "Débit (msg/s)", 2], ["SizeKB", "Taille (Ko)", 0], ["Rules", "Règles", 0], ["Sessions", "Sessions/s", 2], ["TlsSessions", "TLS/s", 2],
+        ["CpuPercent", "CPU %", 1], ["TransportPrivateMB", "EdgeTransport (Mo)", 0], ["UsedMemoryMB", "Mémoire utilisée (Mo)", 0],
+        ["QueueReadIops", "Lectures/s", 1], ["QueueWriteIops", "Écritures/s", 1], ["QueueWriteBps", "Écrit (o/s)", 0], ["NetworkInBps", "Reçu (o/s)", 0], ["NetworkOutBps", "Émis (o/s)", 0]];
+      const present = cols.filter(c => steps.some(s => s[c[0]] !== undefined && s[c[0]] !== null));
+      document.querySelector("#calibration-steps thead").append(el("tr", {}, present.map(c => el("th", { class: c[2] === null ? "" : "num", text: c[1] }))));
+      const sb = document.querySelector("#calibration-steps tbody");
+      for (const s of steps) sb.append(el("tr", {}, present.map(c => el("td", { class: c[2] === null ? "" : "num", text: c[2] === null ? (s[c[0]] ?? "") : nf(s[c[0]], c[2]) }))));
+    }
+  }
+
+  const params = document.getElementById("params");
+  const groupNames = { Topology: "Topologie", Load: "Charge", Resilience: "Résilience", Journaling: "Journalisation", Adjustment: "Ajustement du profil", Storage: "Stockage", Network: "Réseau", Compute: "Calcul", Physical: "Serveur physique" };
+  const keyNames = {
+    Enabled: "Journalisation active", Scope: "Portée", Percent: "Part journalisée (%)", Recipients: "Destinations de journal", OverheadKB: "Enveloppe du rapport (Ko)", Destination: "Destination des rapports", HeldDuringOutage: "Rapports retenus pendant une panne",
+    Sites: "Sites", ServersPerSite: "Serveurs par site", Failure: "Panne retenue", Dag: "Membres d’un DAG", GrowthPercent: "Croissance (%)", PeakHourPercent: "Heure de pointe (% du jour)", BurstFactor: "Facteur de rafale",
+    TransportRules: "Règles de transport", TlsPercent: "Sessions en TLS (%)", MessagesPerSession: "Messages par session SMTP",
+    WorkingHours: "Heures ouvrées", OffHoursPercent: "Trafic hors heures ouvrées (%)", PeakHours: "Durée de la pointe (h)", PeakRate: "Débit de pointe mesuré", PeakRateUnit: "Unité du débit de pointe",
+    CpuPercent: "Ajustement processeur (%)", IoPercent: "Ajustement E/S (%)", MemoryAtRestGB: "Mémoire au repos imposée (Go)",
+    MessageExpirationHours: "Expiration des messages (h)", OutageHours: "Panne du saut suivant (h)", ResidenceSeconds: "Séjour en transit (s)", SafetyNetHoldTimeHours: "SafetyNetHoldTime (h)", ShadowRedundancy: "Redondance shadow", ReplayLagHours: "Délai de relecture (h)", SpaceReclaimDays: "Jours entre deux récupérations de l’espace de mail.que", DrainTargetHours: "Durée de vidange visée (h)",
+    QueueVolume: "Emplacement de la file", MaxFillPercent: "Remplissage maximal (%)", IoOverheadPercent: "Surcoût E/S (%)", RoundingGB: "Arrondi des disques virtuels (Go)", OsGB: "Windows (Go)", ExchangeBinariesGB: "Binaires Exchange (Go)",
+    DiagnosticLogsGB: "Journaux de diagnostic (Go)", TransportLogsGB: "Journaux de transport (Go)", OtherTransportDataGB: "Autres données de transport (Go)",
+    LinkMbps: "Débit de la carte (Mbit/s)", MaxUtilizationPercent: "Utilisation maximale (%)", ProtocolOverheadPercent: "Surcoût protocolaire (%)",
+    MaxCpuPercent: "CPU maximal (%)", TargetProcessor: "Processeur de l’hôte ou du serveur", TargetSpecIntRatePerCore: "SPECint_rate2017 par cœur de la cible", VcpuRatio: "vCPU par cœur physique de l’hôte", SmtGainPercent: "Gain de l’hyperthreading (%)", MemoryReservedPercent: "Mémoire réservée sur l’hôte (%)", HypervisorOverheadPercent: "Surcoût d’hyperviseur (%)", MinCores: "Minimum de cœurs", EvenVcpu: "vCPU arrondis au nombre pair", RamMarginPercent: "Marge RAM (%)", MinRamGB: "RAM minimale (Go)",
+    SpecIntRate2017: "SPECint_rate2017", Cores: "Cœurs", DiskType: "Disques de la file", DiskSizeGB: "Capacité brute par disque de file (Go, 0 = auto)", DiskIops: "IOPS par disque de file (0 = catalogue)", SystemDiskType: "Disques système", SystemDiskSizeGB: "Capacité brute par disque système (Go, 0 = auto)", SystemDiskIops: "IOPS par disque système (0 = catalogue)", IoSizeKB: "Taille moyenne des E/S (Ko, 0 = profil)", SsdIops: "Ancienne saisie IOPS par SSD", QueueRaid: "RAID de la file", SystemRaid: "RAID système"
+  };
+  const valueText = (k, v) => {
+    if (typeof v === "boolean") return v ? "Oui" : "Non";
+    if (typeof v === "number") return nf(v, Number.isInteger(v) ? 0 : 2);
+    const enums = { None: "Aucune", OneServer: "1 serveur", TwoServers: "2 serveurs", OneSite: "1 site", Dedicated: "Volume dédié", System: "Volume système" };
+    if (k === "Scope") return { Global: "Tous les messages", Internal: "Messages internes", External: "Messages externes" }[v] || String(v);
+    if (k === "Destination") return { External: "Archive externe (envoi sortant)", Internal: "Boîte de journalisation interne" }[v] || String(v);
+    return enums[v] || String(v);
+  };
+  const general = el("div", { class: "param-card" }, el("h3", { text: "Scénario" }), el("dl", {},
+    el("dt", { text: "Rôle" }), el("dd", { text: S.RoleLabel || scenario.Role }), el("dt", { text: "Déploiement" }), el("dd", { text: S.DeploymentLabel || scenario.Deployment }),
+    el("dt", { text: "Client" }), el("dd", { text: scenario.Customer || "—" }), el("dt", { text: "Notes" }), el("dd", { text: scenario.Notes || "—" })));
+  params.append(general);
+  for (const [g, title] of Object.entries(groupNames)) {
+    if (g === "Physical" && scenario.Deployment !== "Physical") continue;
+    if (g === "Journaling" && (scenario.Role === "Edge" || !(scenario.Journaling || {}).Enabled)) continue;
+    const values = scenario[g] || {};
+    const dl = el("dl");
+    for (const [k, v] of Object.entries(values)) {
+      if (scenario.Role === "Edge" && ["SafetyNetHoldTimeHours", "ShadowRedundancy", "ReplayLagHours", "Dag"].includes(k)) continue;
+      dl.append(el("dt", { text: keyNames[k] || k }), el("dd", { text: valueText(k, v) }));
+    }
+    params.append(el("div", { class: "param-card" }, el("h3", { text: title }), dl));
+  }
+
+  const kinds = document.getElementById("kinds");
+  for (const [k, label] of Object.entries(kindLabels)) kinds.append(el("span", {}, el("span", { class: "pill kind-" + k, text: label }), " " + kindHelp[k]));
+  document.getElementById("footer").textContent = `${data.Tool} ${data.Version} · Nicolas Fabert · ${generated ? generated.toLocaleString("fr-FR") : ""}`;
+})();
+</script>
+</body></html>
