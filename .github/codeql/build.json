@@ -1,0 +1,5 @@
+{
+  "productionSourceRoot": "src",
+  "requiresSqlite": false,
+  "requiresPowerShell": false
+}

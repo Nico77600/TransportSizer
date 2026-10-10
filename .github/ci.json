@@ -1,0 +1,8 @@
+{
+  "runtimeRoot": ".",
+  "testMode": "runner",
+  "testEntry": "Run-Tests.ps1",
+  "tests": ["tests/TransportSizer.Tests.ps1"],
+  "packageBuilder": "tools/New-TsPackage.ps1",
+  "packageEntry": "Invoke-TransportSizer.ps1"
+}
