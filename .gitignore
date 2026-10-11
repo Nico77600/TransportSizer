@@ -1,0 +1,9 @@
+# Run-time output
+reports/
+# Test results
+artifacts/
+# Editors and backups
+*.user
+*.bak
+.vs/
+.vscode/

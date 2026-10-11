@@ -1,0 +1,488 @@
+<!doctype html>
+<!--
+    Transport Sizer - customer summary template (synthèse)
+    Author  : Nicolas Fabert
+    Version : 1.10.0
+    Export-TsReport (src\Sizer.Report.ps1) copies this file and replaces two markers, each exactly once:
+    TITLE (text) and DATA (JSON result of Invoke-TsSizing, in the script block at the end of the body).
+    A visual summary for the customer: architecture, target server, capacity, day profile, network, incident.
+    The technical report (TransportSizer.html) keeps every value with its formula. Self-contained: no external
+    resource, no storage, no network call. Same design system as the technical report (--cp-*).
+-->
+<html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("scoutTheme");
+    const theme = param === "light" || param === "dark" ? param : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --cp-bg: #f7f4ef; --cp-bg-elevated: #fcfbf8; --cp-surface: #ffffff; --cp-surface-soft: #f5f5f5;
+  --cp-border: #dedede; --cp-border-strong: #919191; --cp-text: #242424; --cp-text-muted: #5c5c5c; --cp-text-soft: #6f6f6f;
+  --cp-accent: #b11f4b; --cp-accent-hover: #9a1a41; --cp-accent-soft: rgba(177, 31, 75, 0.08); --cp-accent-fg: #ffffff;
+  --cp-success: #16a34a; --cp-danger: #dc2626; --cp-warning: #d97706; --cp-link: #0078d4;
+  --cp-success-soft: rgba(22,163,74,0.12); --cp-danger-soft: rgba(220,38,38,0.10); --cp-warning-soft: rgba(217,119,6,0.12); --cp-neutral-soft: rgba(120,120,120,0.12);
+  --cp-highlight: rgba(177, 31, 75, 0.12);
+  --day-peak: #b11f4b; --day-work: #e0758f; --day-off: #c9c4bd;
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --cp-bg: #3d3b3a; --cp-bg-elevated: #343231; --cp-surface: #292929; --cp-surface-soft: #2e2e2e;
+  --cp-border: #474747; --cp-border-strong: #5f5f5f; --cp-text: #dedede; --cp-text-muted: #919191; --cp-text-soft: #b0b0b0;
+  --cp-accent: #fd8ea1; --cp-accent-hover: #fb7b91; --cp-accent-soft: rgba(253, 142, 161, 0.14); --cp-accent-fg: #1a1a1a;
+  --cp-success: #4ade80; --cp-danger: #f87171; --cp-warning: #fbbf24; --cp-link: #4da6ff;
+  --cp-success-soft: rgba(74,222,128,0.14); --cp-danger-soft: rgba(248,113,113,0.16); --cp-warning-soft: rgba(251,191,36,0.16); --cp-neutral-soft: rgba(200,200,200,0.12);
+  --cp-highlight: rgba(253, 142, 161, 0.12);
+  --day-peak: #fd8ea1; --day-work: #b9677a; --day-off: #5f5a55;
+}
+* { box-sizing: border-box; }
+body { margin:0; padding:28px 32px 40px; background:var(--cp-bg); color:var(--cp-text); font:14px "Segoe UI", Aptos, Calibri, -apple-system, BlinkMacSystemFont, sans-serif; }
+main { max-width:1180px; margin:0 auto; }
+h1 { font-size:34px; font-weight:650; letter-spacing:-0.025em; margin:6px 0 6px; }
+h2 { font-size:19px; font-weight:650; margin:0 0 4px; letter-spacing:-0.01em; }
+p { margin:6px 0; line-height:1.45; }
+a { color:var(--cp-link); }
+.muted { color:var(--cp-text-muted); }
+.hero { position:relative; overflow:hidden; border:1px solid var(--cp-border); border-top:4px solid var(--cp-accent); border-radius:16px; padding:26px 28px 24px; margin-bottom:18px; background:linear-gradient(125deg,var(--cp-surface) 40%,var(--cp-accent-soft)); }
+.hero::before { content:""; position:absolute; width:300px; height:300px; right:-110px; top:-170px; border:44px solid var(--cp-highlight); border-radius:50%; pointer-events:none; }
+.origin { color:var(--cp-accent); font-size:11px; letter-spacing:0.1em; text-transform:uppercase; font-weight:700; }
+.meta { color:var(--cp-text-muted); font-size:13px; }
+.lead { font-size:18px; margin:14px 0 18px; max-width:900px; }
+.lead b { color:var(--cp-accent); }
+.kpis { position:relative; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+.kpi { padding:16px 18px; border:1px solid var(--cp-border); border-radius:16px; background:var(--cp-surface); }
+.kpi.main { background:linear-gradient(125deg,var(--cp-accent-hover),var(--cp-accent)); border-color:var(--cp-accent); color:var(--cp-accent-fg); }
+.kpi .k { display:block; font-size:12px; font-weight:600; margin-bottom:8px; }
+.kpi .v { display:block; font-size:28px; font-weight:650; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; line-height:1.1; }
+.kpi .v small { font-size:14px; font-weight:600; margin-left:4px; }
+.kpi .s { display:block; margin-top:6px; font-size:12px; opacity:0.85; }
+.card { background:var(--cp-surface); border:1px solid var(--cp-border); border-radius:16px; padding:20px 22px; margin-bottom:18px; }
+.card > .sub { color:var(--cp-text-muted); font-size:13px; margin:0 0 14px; }
+.grid2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
+.grid2 > .card { margin-bottom:0; }
+svg text { font-family:"Segoe UI", Aptos, Calibri, sans-serif; }
+.specs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.spec { display:flex; gap:14px; align-items:flex-start; padding:14px 16px; border:1px solid var(--cp-border); border-radius:14px; background:linear-gradient(160deg,var(--cp-surface) 55%,var(--cp-surface-soft)); }
+.spec .ico { flex:0 0 40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:var(--cp-accent-soft); color:var(--cp-accent); }
+.spec .ico svg { width:24px; height:24px; }
+.spec .k { font-size:12px; color:var(--cp-text-muted); font-weight:600; }
+.spec .v { font-size:22px; font-weight:650; letter-spacing:-0.015em; font-variant-numeric:tabular-nums; margin:2px 0 3px; }
+.spec .d { font-size:12px; color:var(--cp-text-muted); line-height:1.4; }
+.spec.warn .ico { background:var(--cp-warning-soft); color:var(--cp-warning); }
+.farm { display:flex; flex-wrap:wrap; gap:8px 22px; align-items:center; margin-top:14px; padding:10px 14px; border-radius:12px; background:var(--cp-surface-soft); font-size:13px; }
+.farm b { font-variant-numeric:tabular-nums; }
+.cap { display:grid; grid-template-columns:1.25fr repeat(3,minmax(0,1fr)); border:1px solid var(--cp-border); border-radius:12px; overflow:hidden; }
+.cap > div { padding:12px 14px; border-bottom:1px solid var(--cp-border); font-variant-numeric:tabular-nums; }
+.cap > div.h { background:var(--cp-surface-soft); font-size:12px; font-weight:600; color:var(--cp-text-muted); }
+.cap > div.n { text-align:right; font-size:18px; font-weight:650; }
+.cap > div.l { font-weight:600; display:flex; align-items:center; gap:8px; }
+.cap > div.last { border-bottom:none; }
+.dot { display:inline-block; width:10px; height:10px; border-radius:3px; }
+.bars { margin-top:16px; display:grid; gap:10px; }
+.bars .row { display:grid; grid-template-columns:220px 1fr 120px; gap:12px; align-items:center; font-size:13px; }
+.bars .track { height:18px; border-radius:6px; background:var(--cp-surface-soft); overflow:hidden; }
+.bars .fill { height:100%; border-radius:6px; }
+.bars .val { text-align:right; font-weight:600; font-variant-numeric:tabular-nums; }
+.badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:600; background:var(--cp-neutral-soft); }
+.badge.good { background:var(--cp-success-soft); color:var(--cp-success); } .badge.warn { background:var(--cp-warning-soft); color:var(--cp-warning); } .badge.accent { background:var(--cp-accent-soft); color:var(--cp-accent); }
+.legend { display:flex; flex-wrap:wrap; gap:6px 18px; font-size:12px; color:var(--cp-text-muted); margin-top:8px; }
+.legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+.nics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px 22px; }
+.nic .t { display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px; }
+.nic .t b { font-variant-numeric:tabular-nums; }
+.nic .track { height:12px; border-radius:6px; background:var(--cp-surface-soft); overflow:hidden; }
+.nic .fill { height:100%; min-width:3px; background:var(--cp-accent); border-radius:6px; }
+.totals { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:16px; }
+.total { padding:12px 14px; border:1px solid var(--cp-border); border-radius:12px; }
+.total .k { font-size:12px; color:var(--cp-text-muted); font-weight:600; }
+.total .v { font-size:20px; font-weight:650; font-variant-numeric:tabular-nums; margin-top:2px; }
+.total .d { font-size:12px; color:var(--cp-text-muted); }
+.timeline { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; position:relative; }
+.step { position:relative; padding:0 14px 0 0; }
+.step .n { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:var(--cp-accent); color:var(--cp-accent-fg); font-weight:700; position:relative; z-index:1; }
+.step.ok .n { background:var(--cp-success); }
+.step::before { content:""; position:absolute; top:16px; left:34px; right:0; height:2px; background:var(--cp-border); }
+.step:last-child::before { display:none; }
+.step .k { font-size:12px; color:var(--cp-text-muted); font-weight:600; margin-top:10px; }
+.step .v { font-size:20px; font-weight:650; font-variant-numeric:tabular-nums; margin:2px 0; }
+.step .d { font-size:12px; color:var(--cp-text-muted); line-height:1.4; }
+.chips { display:flex; flex-wrap:wrap; gap:8px; }
+.chip { padding:7px 12px; border:1px solid var(--cp-border); border-radius:10px; background:var(--cp-surface-soft); font-size:13px; }
+.chip span { color:var(--cp-text-muted); margin-right:6px; }
+.alerts { margin:0; padding:0; list-style:none; display:grid; gap:8px; }
+.alerts li { padding:9px 12px; border-radius:10px; border-left:4px solid var(--cp-warning); background:var(--cp-warning-soft); font-size:13px; line-height:1.4; }
+.alerts li.ok { border-left-color:var(--cp-success); background:var(--cp-success-soft); }
+.alerts li.err { border-left-color:var(--cp-danger); background:var(--cp-danger-soft); }
+footer { color:var(--cp-text-muted); font-size:12px; text-align:center; margin-top:12px; }
+.toolbar { position:relative; display:flex; gap:8px; justify-content:flex-end; margin:-4px 0 10px; }
+.toolbar a, .toolbar button { font:inherit; font-size:12px; color:var(--cp-text); background:var(--cp-surface); border:1px solid var(--cp-border); padding:5px 10px; border-radius:0.625rem; cursor:pointer; text-decoration:none; }
+.toolbar a:hover, .toolbar button:hover { color:var(--cp-accent); border-color:var(--cp-accent); }
+.invalid { padding:18px; border-radius:12px; background:var(--cp-danger-soft); }
+@media (max-width: 1000px) { .kpis, .specs { grid-template-columns:repeat(2,minmax(0,1fr)); } .grid2, .nics, .totals { grid-template-columns:1fr; } .timeline { grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; } .bars .row { grid-template-columns:150px 1fr 100px; } }
+@media print {
+  @page { size:A4; margin:12mm; }
+  body { background:#fff; padding:0; font-size:12px; }
+  .toolbar { display:none; }
+  .card, .hero, .kpi, .spec { break-inside:avoid; }
+  .page-break { break-before:page; }
+}
+</style></head>
+<body>
+<main>
+<div class="toolbar"><a href="TransportSizer.html">Rapport technique détaillé</a><button type="button" id="print">Imprimer</button></div>
+<header class="hero">
+  <div class="origin">Exchange &middot; Dimensionnement du transport</div>
+  <h1 id="title">Synthèse</h1>
+  <div class="meta" id="meta"></div>
+  <p class="lead" id="lead"></p>
+  <div class="kpis" id="kpis"></div>
+</header>
+<div id="body"></div>
+<footer id="footer"></footer>
+</main>
+
+<script type="application/json" id="data">{{DATA}}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById("data").textContent);
+  const S = data.Summary || {};
+  const sc = data.Scenario || {};
+  const list = v => Array.isArray(v) ? v : (v === null || v === undefined ? [] : [v]);
+  const V = {};
+  for (const section of list(data.Sections)) for (const item of list(section.Values)) V[item.Id] = item.Value;
+  const num = v => (v === null || v === undefined || v === "" || Number.isNaN(Number(v))) ? null : Number(v);
+  const nf = (v, d = 0) => num(v) === null ? "—" : Number(v).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const big = v => {
+    const n = num(v); if (n === null) return "—";
+    if (n === 0) return "0";
+    if (Math.abs(n) >= 1e6) return nf(n / 1e6, n >= 1e7 ? 0 : 1) + " M";
+    if (Math.abs(n) >= 1e4) return nf(Math.round(n / 1000), 0) + " k";
+    return nf(n, n < 10 ? 1 : 0);
+  };
+  // Three significant figures: a capacity is an order of magnitude, not an exact count.
+  const round3 = v => { const n = num(v); if (n === null || n === 0) return n; const p = Math.pow(10, Math.max(0, Math.floor(Math.log10(Math.abs(n))) - 2)); return Math.round(n / p) * p; };
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]));
+  const el = (tag, attrs = {}, ...children) => {
+    const node = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v === null || v === undefined || v === false) continue;
+      if (k === "class") node.className = v; else if (k === "text") node.textContent = v; else if (k === "html") node.innerHTML = v; else node.setAttribute(k, v);
+    }
+    for (const c of children.flat()) { if (c === null || c === undefined) continue; node.append(c instanceof Node ? c : document.createTextNode(String(c))); }
+    return node;
+  };
+  const card = (title, sub, ...content) => el("section", { class: "card" }, el("h2", { text: title }), sub ? el("p", { class: "sub", text: sub }) : null, ...content);
+  const icons = {
+    cpu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg>',
+    ram: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="7" width="18" height="9" rx="1.5"/><path d="M7 10v3M11 10v3M15 10v3M5 16v3M19 16v3"/></svg>',
+    disk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="6" rx="7" ry="2.6"/><path d="M5 6v12c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6"/><path d="M5 12c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6"/></svg>',
+    queue: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="4" rx="1"/><rect x="3" y="11" width="18" height="4" rx="1"/><rect x="3" y="17" width="12" height="3" rx="1"/></svg>',
+    net: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="8" y="3" width="8" height="6" rx="1"/><rect x="2" y="15" width="7" height="6" rx="1"/><rect x="15" y="15" width="7" height="6" rx="1"/><path d="M12 9v3M5.5 15v-3h13v3"/></svg>',
+    os: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="14" rx="1.5"/><path d="M3 8h18M8 21h8M12 18v3"/></svg>'
+  };
+
+  const servers = num(S.Servers) || 0, alive = num(S.Alive) || 0;
+  const virtual = S.Deployment === "Virtual", edge = S.Role === "Edge";
+  const role = S.RoleLabel || (edge ? "Edge Transport" : "Mailbox (transport)");
+  const generated = data.GeneratedAt ? new Date(data.GeneratedAt) : new Date();
+  document.title = (sc.Name || "Transport Sizer") + " · Synthèse";
+  document.getElementById("title").textContent = sc.Name || "Synthèse";
+  document.getElementById("meta").textContent = [sc.Customer ? "Client : " + sc.Customer : null, "Préparé le " + generated.toLocaleDateString("fr-FR", { dateStyle: "long" }), sc.Author ? "par " + sc.Author : null].filter(Boolean).join(" · ");
+  document.getElementById("print").addEventListener("click", () => window.print());
+  document.getElementById("footer").textContent = `Transport Sizer ${data.Version || ""} · synthèse du dimensionnement. Le rapport technique (TransportSizer.html, même dossier) détaille chaque calcul.`;
+  const body = document.getElementById("body");
+
+  if (!data.Valid) {
+    document.getElementById("lead").textContent = "Le scénario est incomplet : la synthèse sera disponible une fois les points ci-dessous corrigés.";
+    body.append(card("Points à corriger", null, el("ul", { class: "alerts" }, list(data.Checks).filter(c => c.Level === "Error").map(c => el("li", { class: "err", text: c.Message })))));
+    return;
+  }
+
+  // ------------------------------------------------------------------ figures
+  const growth = num(S.GrowthPercent) ?? 0;
+  const orgDay = num(S.MessagesPerDay) || 0;
+  const peakShare = (num(S.PeakHourPercent) || 0) / 100;
+  const burst = num(S.Burst) || 1;
+  const peakOrgPerHour = orgDay * peakShare;
+  const designOrgPerSec = (num(S.RateDesign) || 0) * alive;
+  // Without a calibration profile the processor is unknown: no capacity is shown (the network alone would overstate it).
+  const maxPerServer = S.Calibrated ? num(S.RateMax) : null;
+  const capDegraded = maxPerServer === null ? null : maxPerServer * alive;
+  const capNominal = maxPerServer === null ? null : maxPerServer * servers;
+  const headroom = capDegraded && designOrgPerSec ? capDegraded / designOrgPerSec : null;
+  const headroomText = h => h >= 10 ? "plus de × 10" : `× ${nf(h, 1)}`;
+  const pct = v => { const n = (num(v) || 0) * 100; return nf(n, n > 0 && n < 10 ? 1 : 0) + " %"; };
+  const flows = list(data.Flows);
+  const byDir = dir => flows.filter(f => f.Direction === dir && !f.Journal).reduce((a, f) => a + (num(f.WithGrowth) || 0), 0);
+  const journalFlows = flows.filter(f => f.Journal);
+  const inbound = byDir("Inbound"), outbound = byDir("Outbound"), internal = byDir("Internal");
+  const journal = journalFlows.reduce((a, f) => a + (num(f.WithGrowth) || 0), 0);
+  const config = Object.fromEntries(list(data.Config).map(r => [r.Component, r]));
+  const cfg = (...names) => names.map(n => config[n]).find(Boolean) || null;
+
+  const lead = document.getElementById("lead");
+  lead.innerHTML = `<b>${esc(servers)} serveurs ${esc(role)}</b> ${virtual ? "virtuels" : "physiques"}, répartis sur ${esc(S.Sites)} site(s) : ils traitent <b>${esc(big(orgDay))} messages par jour</b>`
+    + ` (croissance de ${esc(nf(growth, 0))} % comprise)` + (alive < servers ? ` et tiennent la ${esc(String(S.FailureLabel || "").toLowerCase())}, ${esc(alive)} serveurs portant alors tout le trafic.` : ", sans perte de serveur prévue au dimensionnement.");
+
+  const kpis = document.getElementById("kpis");
+  const kpi = (k, v, unit, s, main) => el("div", { class: "kpi" + (main ? " main" : "") }, el("span", { class: "k", text: k }), el("span", { class: "v" }, v, unit ? el("small", { text: unit }) : null), el("span", { class: "s", text: s }));
+  const perServerCpu = S.Cores !== null && S.Cores !== undefined ? `${S.Cores} ${S.CoreUnit}` : "À calibrer";
+  const perServerRam = S.RamGB ? ` · ${nf(S.RamGB)} Go RAM` : "";
+  const diskTotal = (num(S.SystemGB) || 0) + (S.QueueOnSystem ? 0 : (num(S.QueueVolumeGB) || 0));
+  kpis.append(
+    kpi("Serveurs", String(servers), role, `${S.Sites} site(s) × ${S.ServersPerSite} · ${alive} restant(s) en cas de panne`, true),
+    kpi("Chaque serveur", perServerCpu, perServerRam, `${nf(diskTotal)} Go de disque · ${virtual ? "machine virtuelle" : "serveur physique"}`),
+    kpi("Pointe prévue", big(peakOrgPerHour * burst), "msg/h", `${nf(designOrgPerSec, 1)} msg/s pour l’organisation`),
+    kpi(alive < servers ? "Capacité, mode dégradé" : "Capacité", capDegraded === null ? "—" : big(capDegraded * 3600), "msg/h", headroom ? `${alive} serveur(s) · marge ${headroomText(headroom)} sur la pointe` : `${alive} serveur(s)`)
+  );
+
+  // ------------------------------------------------------------------ architecture
+  const arch = () => {
+    const sites = Math.max(1, num(S.Sites) || 1), per = Math.max(1, num(S.ServersPerSite) || 1);
+    const shown = Math.min(per, 6);
+    const failed = new Set();
+    if (S.Failure === "OneServer") failed.add(`${sites - 1}-${per - 1}`);
+    else if (S.Failure === "TwoServers") { if (sites > 1) { failed.add(`0-${per - 1}`); failed.add(`${sites - 1}-${per - 1}`); } else { failed.add(`0-${per - 1}`); failed.add(`0-${per - 2}`); } }
+    else if (S.Failure === "OneSite") for (let i = 0; i < per; i++) failed.add(`${sites - 1}-${i}`);
+    const W = 1100, siteGap = 18, midX = 300, midW = 500;
+    const siteW = (midW - siteGap * (sites - 1)) / sites;
+    const rowH = 46, top = 30;
+    const siteH = 52 + shown * rowH + (per > shown ? 22 : 0);
+    const cy = Math.max(top + siteH / 2, 100);
+    const journalOut = journalFlows.filter(f => f.Direction === "Outbound").reduce((a, f) => a + (num(f.WithGrowth) || 0), 0);
+    const journalIn = journal - journalOut;
+    const H = Math.max(top + siteH + 16, cy + 76, cy + (internal || journalOut ? 96 : 0), cy + (internal && journalIn ? 140 : journalIn ? 96 : 0));
+    const parts = [];
+    parts.push(`<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--cp-accent)"/></marker></defs>`);
+    const box = (x, label, sub, iconPath) => {
+      const bh = 120, by = cy - bh / 2;
+      parts.push(`<rect x="${x}" y="${by}" width="200" height="${bh}" rx="14" fill="var(--cp-surface-soft)" stroke="var(--cp-border-strong)"/>`);
+      parts.push(`<g transform="translate(${x + 84},${by + 16}) scale(1.4)" fill="none" stroke="var(--cp-text-muted)" stroke-width="1.6">${iconPath}</g>`);
+      parts.push(`<text x="${x + 100}" y="${by + 76}" text-anchor="middle" font-size="15" font-weight="600" fill="var(--cp-text)">${esc(label)}</text>`);
+      parts.push(`<text x="${x + 100}" y="${by + 96}" text-anchor="middle" font-size="12" fill="var(--cp-text-muted)">${esc(sub)}</text>`);
+    };
+    const globe = '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/>';
+    const building = '<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 7h2M14 7h2M8 11h2M14 11h2M8 15h2M14 15h2"/>';
+    if (edge) { box(20, "Internet", "expéditeurs et destinataires", globe); box(W - 220, "Organisation", "serveurs Mailbox Exchange", building); }
+    else { box(20, "Edge · Internet", "flux entrants et sortants", globe); box(W - 220, "Organisation", "boîtes aux lettres, applications", building); }
+    for (let s = 0; s < sites; s++) {
+      const x = midX + s * (siteW + siteGap);
+      parts.push(`<rect x="${x}" y="${top}" width="${siteW}" height="${siteH}" rx="14" fill="var(--cp-accent-soft)" stroke="var(--cp-accent)" stroke-dasharray="${S.Failure === "OneSite" && s === sites - 1 ? "6 5" : "0"}"/>`);
+      parts.push(`<text x="${x + 14}" y="${top + 24}" font-size="13" font-weight="700" fill="var(--cp-accent)">SITE ${s + 1}</text>`);
+      for (let i = 0; i < shown; i++) {
+        const down = failed.has(`${s}-${i}`);
+        const y = top + 40 + i * rowH, sx = x + 14, sw = siteW - 28;
+        parts.push(`<rect x="${sx}" y="${y}" width="${sw}" height="36" rx="8" fill="${down ? "var(--cp-surface-soft)" : "var(--cp-surface)"}" stroke="${down ? "var(--cp-border-strong)" : "var(--cp-accent)"}" ${down ? 'stroke-dasharray="5 4"' : ""}/>`);
+        for (let k = 0; k < 3; k++) parts.push(`<circle cx="${sx + 14 + k * 9}" cy="${y + 18}" r="2.6" fill="${down ? "var(--cp-border-strong)" : "var(--cp-success)"}"/>`);
+        parts.push(`<text x="${sx + 48}" y="${y + 23}" font-size="13" font-weight="600" fill="${down ? "var(--cp-text-muted)" : "var(--cp-text)"}">${esc(edge ? "Edge" : "Mailbox")} ${s * per + i + 1}</text>`);
+        if (down) parts.push(`<text x="${sx + sw - 10}" y="${y + 23}" text-anchor="end" font-size="11" fill="var(--cp-danger)">hors service</text>`);
+        else if (S.Cores !== null && S.Cores !== undefined) parts.push(`<text x="${sx + sw - 10}" y="${y + 23}" text-anchor="end" font-size="11" fill="var(--cp-text-muted)">${esc(S.Cores)} ${esc(S.CoreUnit || "")} · ${esc(nf(S.RamGB))} Go</text>`);
+      }
+      if (per > shown) parts.push(`<text x="${x + siteW / 2}" y="${top + 40 + shown * rowH + 12}" text-anchor="middle" font-size="12" fill="var(--cp-text-muted)">+ ${per - shown} serveur(s)</text>`);
+    }
+    const arrow = (x1, x2, y, label, sub) => {
+      parts.push(`<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="var(--cp-accent)" stroke-width="2.2" marker-end="url(#arr)"/>`);
+      const mx = (x1 + x2) / 2;
+      parts.push(`<text x="${mx}" y="${y - 8}" text-anchor="middle" font-size="12" font-weight="600" fill="var(--cp-text)">${esc(label)}</text>`);
+      if (sub) parts.push(`<text x="${mx}" y="${y + 16}" text-anchor="middle" font-size="11" fill="var(--cp-text-muted)">${esc(sub)}</text>`);
+    };
+    const leftR = 220, rightL = W - 220, midL = midX, midR = midX + midW;
+    if (inbound) { arrow(leftR + 6, midL - 6, cy - 26, "Entrant", big(inbound) + " msg/j"); arrow(midR + 6, rightL - 6, cy - 26, "Entrant", big(inbound) + " msg/j"); }
+    if (outbound) { arrow(midL - 6, leftR + 6, cy + 30, "Sortant", big(outbound) + " msg/j"); arrow(rightL - 6, midR + 6, cy + 30, "Sortant", big(outbound) + " msg/j"); }
+    if (internal) arrow(rightL - 6, midR + 6, cy + 74, "Interne", big(internal) + " msg/j");
+    if (journalOut) arrow(midL - 6, leftR + 6, cy + 74, "Journal (archive)", big(journalOut) + " rapports/j");
+    if (journalIn) arrow(midR + 6, rightL - 6, internal ? cy + 118 : cy + 74, "Journal", big(journalIn) + " rapports/j");
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Architecture">${parts.join("")}</svg>`;
+  };
+  const archLegend = el("div", { class: "legend" },
+    el("span", {}, el("i", { style: "background:var(--cp-success)" }), "serveur en service"),
+    alive < servers ? el("span", {}, el("i", { style: "background:var(--cp-border-strong)" }), `hors service dans le scénario de panne (${String(S.FailureLabel || "").toLowerCase()})`) : null,
+    el("span", {}, "volumes par jour, croissance comprise"));
+  body.append(card("L’architecture", edge ? "Les serveurs Edge sont en DMZ, entre Internet et l’organisation Exchange." : "Les serveurs Mailbox assurent le transport de l’organisation, avec Safety Net et copies de secours (shadow).", el("div", { html: arch() }), archLegend));
+
+  // ------------------------------------------------------------------ target server
+  const spec = (icon, k, v, d, warn) => el("div", { class: "spec" + (warn ? " warn" : "") }, el("div", { class: "ico", html: icons[icon] }), el("div", {}, el("div", { class: "k", text: k }), el("div", { class: "v", text: v }), el("div", { class: "d", text: d })));
+  const cpuRow = cfg("Processeur"), memRow = cfg("Mémoire"), sysRow = cfg("Disques système", "Disque système"), queueRow = cfg("Disques file d’attente", "Disque file d’attente"), netRow = cfg("Réseau");
+  const hostCpu = sc.Compute && sc.Compute.TargetProcessor ? sc.Compute.TargetProcessor : null;
+  const cpuDetail = virtual
+    ? [hostCpu ? "hôte " + hostCpu : null, S.VcpuRatio ? `${nf(S.VcpuRatio, S.VcpuRatio % 1 ? 1 : 0)} vCPU par cœur physique` : null, `${pct(S.CpuUtilization)} en pointe`].filter(Boolean).join(" · ")
+    : [hostCpu || (sc.Physical && sc.Physical.SpecIntRate2017 ? `SPECint_rate2017 ${nf(sc.Physical.SpecIntRate2017)}` : null), `${pct(S.CpuUtilization)} en pointe`].filter(Boolean).join(" · ");
+  const memDetail = virtual && S.MemoryReservedGB !== null && S.MemoryReservedGB !== undefined
+    ? `réservée sur l’hôte : ${nf(S.MemoryReservedGB)} Go (au moins ${nf(S.MemoryReserveMinGB)} Go)` : "seuils de protection d’Exchange respectés";
+  const raidText = r => r ? [r.Label, `${nf(r.UsableGB)} Go utiles`, r.DiskName || (sc.Physical ? sc.Physical.DiskType : null), r.PerformanceKnown === false ? "IOPS à confirmer" : null].filter(Boolean).join(" · ") : null;
+  const specs = el("div", { class: "specs" },
+    spec("cpu", "Processeur", cpuRow ? cpuRow.Value : "—", cpuDetail),
+    spec("ram", "Mémoire", memRow ? memRow.Value : "—", memDetail, memRow && memRow.Status === "warning"),
+    spec("disk", virtual ? "Disque système" : "Disques système", virtual ? nf(S.SystemGB) + " Go" : (sysRow ? sysRow.Value : "—"), virtual ? "Windows, Exchange, journaux, fichier d’échange" : (raidText(S.SystemRaid) || ""), sysRow && sysRow.Status === "partial"),
+    S.QueueOnSystem ? spec("queue", "File d’attente", "Sur le disque système", "pas de disque dédié")
+      : spec("queue", virtual ? "Disque de la file d’attente" : "Disques de la file d’attente", virtual ? nf(S.QueueVolumeGB) + " Go" : (queueRow ? queueRow.Value : "—"), [S.Iops !== null && S.Iops !== undefined ? `≥ ${nf(S.Iops)} IOPS` : null, S.QueueWriteMBps ? `${nf(S.QueueWriteMBps, 1)} Mo/s en écriture` : null, !virtual ? raidText(S.QueueRaid) : null].filter(Boolean).join(" · "), queueRow && queueRow.Status === "partial"),
+    spec("net", "Réseau", netRow ? netRow.Value : "—", edge ? "une carte vers Internet, une vers l’organisation" : "une carte, copies de secours comprises"),
+    spec("os", "Système", "Windows Server 2025", "ou 2022, 2019 · Standard · Server Core recommandé · Exchange Server SE"));
+  const farmItems = [["Ferme complète", `${servers} serveurs`]];
+  if (S.Cores !== null && S.Cores !== undefined) farmItems.push([virtual ? "vCPU" : "Cœurs", nf(S.Cores * servers)]);
+  if (S.RamGB) farmItems.push(["RAM", nf(S.RamGB * servers) + " Go"]);
+  farmItems.push(["Disque", diskTotal * servers >= 2000 ? nf(diskTotal * servers / 1024, 1) + " To" : nf(diskTotal * servers) + " Go"]);
+  if (virtual && S.MemoryReserveMinGB) farmItems.push(["RAM à réserver", nf(S.MemoryReserveMinGB * servers) + " Go au moins"]);
+  const farm = el("div", { class: "farm" }, farmItems.map(([k, v]) => el("span", {}, el("span", { class: "muted", text: k + " : " }), el("b", { text: v }))));
+  body.append(card("Chaque serveur", virtual ? "Machine virtuelle, configuration identique sur tous les serveurs." : "Serveur physique, configuration identique sur tous les serveurs.", specs, farm));
+
+  // ------------------------------------------------------------------ capacity
+  const capRows = [
+    ["Pointe prévue", "var(--cp-accent)", designOrgPerSec, designOrgPerSec * 3600, orgDay, "par jour : volume prévu"],
+    [`Capacité avec ${alive} serveur(s)`, "var(--cp-success)", capDegraded, capDegraded === null ? null : capDegraded * 3600, capDegraded === null ? null : capDegraded * 86400, "en continu sur 24 h"],
+    [`Capacité avec les ${servers} serveurs`, "var(--cp-border-strong)", capNominal, capNominal === null ? null : capNominal * 3600, capNominal === null ? null : capNominal * 86400, "en continu sur 24 h"]
+  ].filter((r, i) => i < 2 || alive < servers);
+  const cap = el("div", { class: "cap" }, el("div", { class: "h", text: "Messages" }), el("div", { class: "h", style: "text-align:right", text: "par seconde" }), el("div", { class: "h", style: "text-align:right", text: "par heure" }), el("div", { class: "h", style: "text-align:right", text: "par jour" }));
+  capRows.forEach((r, i) => {
+    const last = i === capRows.length - 1 ? " last" : "";
+    cap.append(el("div", { class: "l" + last }, el("i", { class: "dot", style: `background:${r[1]}` }), r[0]),
+      el("div", { class: "n" + last, text: (i && S.RateMaxExtrapolated ? "≈ " : "") + nf(r[2], r[2] !== null && r[2] < 100 ? 1 : 0) }), el("div", { class: "n" + last, text: (i && S.RateMaxExtrapolated ? "≈ " : "") + nf(i ? round3(r[3]) : r[3]) }), el("div", { class: "n" + last, text: (i && S.RateMaxExtrapolated ? "≈ " : "") + nf(i ? round3(r[4]) : r[4]) }));
+  });
+  const maxBar = Math.max(capNominal || 0, designOrgPerSec);
+  const bars = el("div", { class: "bars" }, capRows.map(r => el("div", { class: "row" }, el("span", { text: r[0] }),
+    el("div", { class: "track" }, el("div", { class: "fill", style: `width:${maxBar ? Math.max(0.5, (r[2] || 0) / maxBar * 100) : 0}%;background:${r[1]}` })), el("span", { class: "val", text: nf(round3(r[3])) + " msg/h" }))));
+  const capBadges = el("p", {}, headroom ? el("span", { class: "badge " + (headroom >= 1.5 ? "good" : "warn"), text: `Marge${alive < servers ? " en mode dégradé" : ""} : ${headroomText(headroom)}` }) : null, " ",
+    el("span", { class: "badge", text: `${nf(S.MessagesPerDayPerServer)} messages par jour et par serveur restant` }), " ",
+    S.RateMaxExtrapolated ? el("span", { class: "badge warn", text: "capacité au-delà des mesures de référence : à confirmer par un test de charge" }) : null);
+  body.append(card("Capacité de traitement", `Pointe de l’organisation face à ce que traitent les serveurs (processeur à 80 %, réseau à ${nf(sc.Network && sc.Network.MaxUtilizationPercent, 0)} %).`, cap, bars, capBadges));
+
+  // ------------------------------------------------------------------ day profile
+  const day = () => {
+    const W = 1100, H = 300, padL = 70, padR = 20, padT = 24, padB = 56;
+    const wh = num(S.WorkingHours) || 24, ph = num(S.PeakHours) || 1, off = (num(S.OffHoursPercent) || 0) / 100;
+    const other = wh > ph ? Math.max(0, (1 - off - ph * peakShare) / (wh - ph)) : 0;
+    const offShare = wh < 24 ? off / (24 - wh) : 0;
+    const before = Math.floor((24 - wh) / 2);
+    const hours = [];
+    for (let h = 0; h < 24; h++) {
+      const w = h - before;
+      if (w < 0 || w >= wh) hours.push({ kind: "off", v: orgDay * offShare });
+      else if (w >= 1 && w < 1 + ph && ph < wh) hours.push({ kind: "peak", v: orgDay * peakShare });
+      else if (ph >= wh) hours.push({ kind: "peak", v: orgDay * peakShare });
+      else hours.push({ kind: "work", v: orgDay * other });
+    }
+    const capLine = capDegraded === null ? 0 : capDegraded * 3600;
+    const loadMax = Math.max(...hours.map(h => h.v));
+    const capInScale = capLine > 0 && capLine <= loadMax * 4;
+    const top = (capInScale ? Math.max(loadMax, capLine) : loadMax) * 1.08 || 1;
+    // Round graduations: 1, 2, 2.5 or 5 × a power of ten.
+    const raw = top / 4, p10 = Math.pow(10, Math.floor(Math.log10(raw)));
+    const tick = [1, 2, 2.5, 5, 10].map(m => m * p10).find(t => t >= raw);
+    const yMax = tick * 4;
+    const bw = (W - padL - padR) / 24;
+    const y = v => padT + (H - padT - padB) * (1 - v / yMax);
+    const parts = [];
+    for (let t = 0; t <= 4; t++) {
+      const v = tick * t, yy = y(v);
+      parts.push(`<line x1="${padL}" y1="${yy}" x2="${W - padR}" y2="${yy}" stroke="var(--cp-border)" stroke-width="1"/>`);
+      parts.push(`<text x="${padL - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="var(--cp-text-muted)">${esc(big(v))}</text>`);
+    }
+    hours.forEach((h, i) => {
+      const x = padL + i * bw + 3, yy = y(h.v), color = h.kind === "peak" ? "var(--day-peak)" : h.kind === "work" ? "var(--day-work)" : "var(--day-off)";
+      parts.push(`<rect x="${x}" y="${yy}" width="${bw - 6}" height="${H - padB - yy}" rx="3" fill="${color}"/>`);
+    });
+    if (capInScale) {
+      parts.push(`<line x1="${padL}" y1="${y(capLine)}" x2="${W - padR}" y2="${y(capLine)}" stroke="var(--cp-success)" stroke-width="2.2" stroke-dasharray="8 6"/>`);
+      parts.push(`<text x="${W - padR}" y="${y(capLine) - 8}" text-anchor="end" font-size="12" font-weight="600" fill="var(--cp-success)">capacité avec ${alive} serveur(s) : ${esc(nf(round3(capLine)))} msg/h</text>`);
+    }
+    else if (capLine) {
+      parts.push(`<text x="${W - padR}" y="16" text-anchor="end" font-size="12" font-weight="600" fill="var(--cp-success)">↑ capacité avec ${alive} serveur(s) : ${esc(big(round3(capLine)))} msg/h, hors échelle</text>`);
+    }
+    const groupLabel = (from, to, label) => { const x1 = padL + from * bw, x2 = padL + to * bw; parts.push(`<line x1="${x1 + 4}" y1="${H - padB + 14}" x2="${x2 - 4}" y2="${H - padB + 14}" stroke="var(--cp-border-strong)"/><text x="${(x1 + x2) / 2}" y="${H - padB + 32}" text-anchor="middle" font-size="12" fill="var(--cp-text-muted)">${esc(label)}</text>`); };
+    if (before > 0) groupLabel(0, before, "hors journée");
+    groupLabel(before, before + wh, `journée de travail (${nf(wh)} h)`);
+    if (before + wh < 24) groupLabel(before + wh, 24, "hors journée");
+    parts.push(`<text x="${padL}" y="14" font-size="11" fill="var(--cp-text-muted)">messages par heure (organisation)</text>`);
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Profil horaire">${parts.join("")}</svg>`;
+  };
+  const dayLegend = el("div", { class: "legend" },
+    el("span", {}, el("i", { style: "background:var(--day-peak)" }), `pointe : ${nf(peakOrgPerHour)} msg/h pendant ${nf(S.PeakHours)} h`),
+    el("span", {}, el("i", { style: "background:var(--day-work)" }), "heures ouvrées"),
+    el("span", {}, el("i", { style: "background:var(--day-off)" }), `hors journée : ${nf(S.OffHoursPercent)} % du trafic`),
+    el("span", { text: "placement des heures indicatif" }));
+  body.append(card("Une journée type", `${big(orgDay)} messages par jour pour l’organisation, concentrés sur la journée de travail.`, el("div", { html: day() }), dayLegend));
+
+  // ------------------------------------------------------------------ network
+  const link = num(V["net.link"]) || 1000;
+  const nic = (label, mbps) => el("div", { class: "nic" }, el("div", { class: "t" }, el("span", { text: label }), el("span", {}, el("b", { text: `${nf(mbps, mbps < 10 ? 1 : 0)} Mbit/s` }), el("span", { class: "muted", text: ` · ${nf((mbps || 0) / link * 100, 1)} % de la carte` }))),
+    el("div", { class: "track" }, el("div", { class: "fill", style: `width:${Math.min(100, (mbps || 0) / link * 100)}%` })));
+  const nics = el("div", { class: "nics" });
+  if (edge) nics.append(nic("Internet → Edge", num(V["net.extIn"])), nic("Edge → Internet", num(V["net.extOut"])), nic("Organisation → Edge", num(V["net.intIn"])), nic("Edge → organisation", num(V["net.intOut"])));
+  else nics.append(nic("Réception", num(V["net.in"])), nic("Émission", num(V["net.out"])));
+  const drainRate = num(V["res.drainRate"]);
+  const drainMbps = drainRate === null ? null : drainRate * (num(S.AverageSizeKB) || 0) * 8 / 1024 * (1 + (num(V["net.overhead"]) || 5) / 100);
+  const internetIn = edge ? (num(V["net.extIn"]) || 0) * alive : (num(V["net.in"]) || 0) * alive;
+  const internetOut = edge ? (num(V["net.extOut"]) || 0) * alive : (num(V["net.out"]) || 0) * alive;
+  const dayGB = ((num(V["net.dayIn"]) || 0) + (num(V["net.dayOut"]) || 0)) * alive;
+  const totals = el("div", { class: "totals" },
+    el("div", { class: "total" }, el("div", { class: "k", text: edge ? "Lien Internet en pointe (tous les Edge)" : "Trafic en pointe (tous les serveurs)" }), el("div", { class: "v", text: `${nf(internetIn, internetIn < 10 ? 1 : 0)} ↓ · ${nf(internetOut, internetOut < 10 ? 1 : 0)} ↑ Mbit/s` }), el("div", { class: "d", text: "entrant ↓ · sortant ↑" })),
+    el("div", { class: "total" }, el("div", { class: "k", text: "Retour après une panne" }), el("div", { class: "v", text: drainMbps === null ? "—" : `+ ${nf(drainMbps, drainMbps < 10 ? 1 : 0)} Mbit/s` }), el("div", { class: "d", text: "par serveur, pendant la vidange de la file" })),
+    el("div", { class: "total" }, el("div", { class: "k", text: "Volume échangé par jour" }), el("div", { class: "v", text: `${nf(dayGB)} Go` }), el("div", { class: "d", text: "tous les serveurs, reçu et émis" })));
+  body.append(card("Réseau", `Par serveur restant, à la pointe, sur des cartes de ${nf(link)} Mbit/s. La barre montre la part de la carte utilisée.`, nics, totals));
+
+  // ------------------------------------------------------------------ incident
+  const backlog = (num(V["queue.backlog"]) || 0) * alive;
+  const step = (n, k, v, d, ok) => el("div", { class: "step" + (ok ? " ok" : "") }, el("div", { class: "n", text: String(n) }), el("div", { class: "k", text: k }), el("div", { class: "v", text: v }), el("div", { class: "d", text: d }));
+  const outageH = num(V["queue.outage"]) ?? num(S.OutageHours);
+  const timeline = el("div", { class: "timeline" },
+    step(1, "Perte de serveurs", `${alive} sur ${servers}`, `${S.FailureLabel} : les serveurs restants portent tout le trafic.`),
+    step(2, "Panne du saut suivant", `${nf(outageH)} h`, edge ? "Organisation ou Internet injoignable : les messages restent en file sur les Edge." : "Saut suivant injoignable : les messages restent en file."),
+    step(3, "Messages gardés en file", big(backlog), `${nf(S.MailQueGB)} Go de base de file par serveur au pire moment.`),
+    step(4, "Retour à la normale", S.DrainHours !== null && S.DrainHours !== undefined ? `${nf(S.DrainHours, 1)} h` : "—", "Temps pour vider la file une fois le service rétabli, pendant que le trafic continue.", true));
+  const extra = [];
+  if (!edge) {
+    const hold = num(V["queue.safetyNetHold"]);
+    if (hold !== null) extra.push(el("span", { class: "badge accent", text: `Safety Net : ${nf(hold)} h de messages conservés` }));
+    extra.push(el("span", { class: "badge " + (V["queue.shadowActive"] ? "good" : "warn"), text: V["queue.shadowActive"] ? "Copies de secours (shadow) actives" : "Pas de copie de secours (shadow)" }));
+  }
+  body.append(card("En cas d’incident", "Le dimensionnement tient compte du pire cas : perte de serveurs et panne du saut suivant en pleine journée.", timeline, extra.length ? el("p", { style: "margin-top:16px" }, extra.flatMap(x => [x, " "])) : null));
+
+  // ------------------------------------------------------------------ assumptions and points
+  const chip = (k, v) => el("div", { class: "chip" }, el("span", { text: k }), v);
+  const peakText = S.PeakFromRate && sc.Load ? `${nf(sc.Load.PeakRate, 0)} msg/${sc.Load.PeakRateUnit === "PerSecond" ? "s" : "h"} mesurés` : `${nf(S.PeakHourPercent, 1)} % du jour par heure`;
+  const chips = el("div", { class: "chips" },
+    chip("Volume", `${big(orgDay / (1 + growth / 100))} msg/j + ${nf(growth)} % de croissance`),
+    chip("Taille moyenne", `${nf(S.AverageSizeKB)} Ko`),
+    chip("Pointe", `${peakText}, ${nf(S.PeakHours)} h`),
+    chip("Journée", `${nf(S.WorkingHours)} h ouvrées, ${nf(S.OffHoursPercent)} % hors journée`),
+    chip("Chiffrement", `${nf(S.TlsPercent)} % TLS`),
+    chip("Panne absorbée", `${nf(S.OutageHours)} h`),
+    virtual ? chip("Hôtes", `${hostCpu || "même processeur que la référence"} · ${nf(S.VcpuRatio, S.VcpuRatio % 1 ? 1 : 0)}:1`) : null,
+    chip("Mesures", S.ProfileSource === "Reference" ? "référence du laboratoire (générique)" : "mesurées chez le client"));
+  const known = {
+    Extrapolation: () => "Pointe au-delà des débits mesurés en référence : à confirmer par un test de charge.",
+    SessionsExtrapolation: () => "Connexions par seconde au-delà des mesures de référence : à confirmer par un test de charge.",
+    DehydrationRejects: () => `Panne très longue : au-delà de ${big(V["mem.hydrated"])} messages en file par serveur, refus temporaires possibles (les expéditeurs réessaient).`,
+    MemoryReserveOutage: () => `Mémoire à réserver sur les hôtes : au moins ${nf(S.MemoryReserveMinGB)} Go par serveur.`,
+    MemoryReserveNormal: () => `Mémoire à réserver sur les hôtes : au moins ${nf(S.MemoryReserveMinGB)} Go par serveur.`,
+    VcpuRatioUnsupported: () => "Ratio vCPU / cœur au-delà du maximum pris en charge par Microsoft (2:1).",
+    DrainSlow: () => "Retour à la normale après une panne plus long que l’objectif.",
+    NoDrain: () => "La file d’une panne en journée ne se vide qu’après la journée de travail.",
+    CoresShort: () => "Serveur physique : cœurs insuffisants pour la pointe.",
+    DrainCoresShort: () => "Serveur physique : cœurs insuffisants pour l’objectif de retour à la normale.",
+    LinkSaturated: () => "Cartes réseau trop justes à la pointe.",
+    TooManyCores: () => "Serveur au-delà des limites d’Exchange : ajouter des serveurs.",
+    TooMuchMemory: () => "Serveur au-delà des limites d’Exchange : ajouter des serveurs.",
+    ShadowAlone: () => "Un serveur peut rester seul dans son site : ses messages n’ont plus de copie de secours."
+  };
+  const hidden = new Set(["WeakModel", "EseNotCalibrated", "SizeExtrapolation", "SizeNotCalibrated", "RulesExtrapolation", "CalibrationRole"]);
+  const seen = new Set();
+  const points = [];
+  for (const c of list(data.Checks)) {
+    if (c.Level === "Info" || hidden.has(c.Code)) continue;
+    const text = known[c.Code] ? known[c.Code]() : String(c.Message).split(" : ")[0] + ".";
+    if (seen.has(text)) continue;
+    seen.add(text); points.push(el("li", { class: c.Level === "Error" ? "err" : "", text }));
+  }
+  if (S.ProfileSource === "Reference") points.push(el("li", { class: "ok", text: "Dimensionnement générique, fondé sur des mesures de référence : une mesure sur un serveur du client l’affinera." }));
+  if (!points.length) points.push(el("li", { class: "ok", text: "Aucun point d’attention." }));
+  body.append(el("div", { class: "grid2" },
+    card("Hypothèses", null, chips),
+    card("Points d’attention", null, el("ul", { class: "alerts" }, points.slice(0, 6)))));
+})();
+</script>
+</body></html>

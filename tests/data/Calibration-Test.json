@@ -1,0 +1,143 @@
+{
+  "SchemaVersion": 1,
+  "Name": "Profil de test (synthétique)",
+  "Role": "Edge",
+  "MeasuredAt": "2026-10-06",
+  "Source": "Données synthétiques des tests Pester : ce n'est pas une mesure",
+  "Server": {
+    "Name": "TEST-EDGE",
+    "LogicalProcessors": 2,
+    "Cores": 1,
+    "MemoryGB": 8,
+    "Virtual": true,
+    "Model": "Microsoft Corporation Virtual Machine",
+    "Processor": "Synthétique",
+    "SpecIntRatePerCore": 0,
+    "ExchangeVersion": "15.02.1748.010"
+  },
+  "MessageSizeKB": 75,
+  "MaxRate": 20,
+  "Models": {
+    "CpuPercent": {
+      "Intercept": 6,
+      "Slope": 2.5,
+      "R2": 0.99,
+      "Points": 5
+    },
+    "TransportPrivateMB": {
+      "Intercept": 350,
+      "Slope": 6,
+      "R2": 0.95,
+      "Points": 5
+    },
+    "UsedMemoryMB": {
+      "Intercept": 4200,
+      "Slope": 10,
+      "R2": 0.9,
+      "Points": 5
+    },
+    "QueueReadIops": {
+      "Intercept": 0.5,
+      "Slope": 0.4,
+      "R2": 0.9,
+      "Points": 5
+    },
+    "QueueWriteIops": {
+      "Intercept": 3,
+      "Slope": 4.5,
+      "R2": 0.98,
+      "Points": 5
+    },
+    "NetworkInBps": {
+      "Intercept": 2000,
+      "Slope": 82000,
+      "R2": 0.99,
+      "Points": 5
+    },
+    "NetworkOutBps": {
+      "Intercept": 2000,
+      "Slope": 81000,
+      "R2": 0.99,
+      "Points": 5
+    }
+  },
+  "Backlog": {
+    "Messages": 20000,
+    "QueueGrowthMB": 1700,
+    "EseOverheadFactor": 1.16,
+    "TransportPrivateGrowthMB": 60,
+    "MemoryKBPerQueued": 3.07
+  },
+  "Steps": [
+    {
+      "Label": "idle",
+      "Kind": "Idle",
+      "DurationSeconds": 300,
+      "Samples": 48,
+      "Rate": 0,
+      "CpuPercent": 6.1,
+      "TransportPrivateMB": 351,
+      "UsedMemoryMB": 4199,
+      "QueueReadIops": 0.5,
+      "QueueWriteIops": 3,
+      "NetworkInBps": 2100,
+      "NetworkOutBps": 1900
+    },
+    {
+      "Label": "load-02",
+      "Kind": "Load",
+      "DurationSeconds": 660,
+      "Samples": 120,
+      "Rate": 2,
+      "CpuPercent": 11,
+      "TransportPrivateMB": 362,
+      "UsedMemoryMB": 4221,
+      "QueueReadIops": 1.3,
+      "QueueWriteIops": 12,
+      "NetworkInBps": 166000,
+      "NetworkOutBps": 164000
+    },
+    {
+      "Label": "load-05",
+      "Kind": "Load",
+      "DurationSeconds": 660,
+      "Samples": 120,
+      "Rate": 5,
+      "CpuPercent": 18.4,
+      "TransportPrivateMB": 381,
+      "UsedMemoryMB": 4249,
+      "QueueReadIops": 2.5,
+      "QueueWriteIops": 25.5,
+      "NetworkInBps": 412000,
+      "NetworkOutBps": 407000
+    },
+    {
+      "Label": "load-10",
+      "Kind": "Load",
+      "DurationSeconds": 660,
+      "Samples": 120,
+      "Rate": 10,
+      "CpuPercent": 31.2,
+      "TransportPrivateMB": 409,
+      "UsedMemoryMB": 4302,
+      "QueueReadIops": 4.4,
+      "QueueWriteIops": 48,
+      "NetworkInBps": 822000,
+      "NetworkOutBps": 812000
+    },
+    {
+      "Label": "load-20",
+      "Kind": "Load",
+      "DurationSeconds": 660,
+      "Samples": 120,
+      "Rate": 20,
+      "CpuPercent": 55.8,
+      "TransportPrivateMB": 470,
+      "UsedMemoryMB": 4398,
+      "QueueReadIops": 8.6,
+      "QueueWriteIops": 93,
+      "NetworkInBps": 1642000,
+      "NetworkOutBps": 1622000
+    }
+  ]
+}

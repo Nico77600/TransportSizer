@@ -1,0 +1,118 @@
+{
+  "SchemaVersion": 1,
+  "Name": "Mailbox - relais sans boîtes (exemple)",
+  "Customer": "",
+  "Author": "",
+  "Notes": "Serveurs Mailbox sans boîte aux lettres, relais entre les Edge, les applications et les serveurs de boîtes : Safety Net et redondance shadow comptés. Dimensionnés pour la perte d'un site.",
+  "Role": "Mailbox",
+  "Deployment": "Virtual",
+  "Topology": {
+    "Sites": 2.0,
+    "ServersPerSite": 2.0,
+    "Failure": "OneSite",
+    "Dag": false
+  },
+  "Flows": [
+    {
+      "Name": "Entrant (Edge, Internet)",
+      "Direction": "Inbound",
+      "MessagesPerDay": 100000.0,
+      "AverageSizeKB": 75.0,
+      "FanOut": 1.0,
+      "HeldDuringOutage": true
+    },
+    {
+      "Name": "Sortant (vers Edge, Internet)",
+      "Direction": "Outbound",
+      "MessagesPerDay": 50000.0,
+      "AverageSizeKB": 75.0,
+      "FanOut": 1.2,
+      "HeldDuringOutage": true
+    },
+    {
+      "Name": "Relais applicatif",
+      "Direction": "Internal",
+      "MessagesPerDay": 20000.0,
+      "AverageSizeKB": 40.0,
+      "FanOut": 1.0,
+      "HeldDuringOutage": true
+    }
+  ],
+  "Load": {
+    "GrowthPercent": 20.0,
+    "PeakHourPercent": 15.0,
+    "BurstFactor": 1.0,
+    "TransportRules": 0.0,
+    "TlsPercent": 100.0,
+    "MessagesPerSession": 10.0,
+    "WorkingHours": 10.0,
+    "OffHoursPercent": 10.0,
+    "PeakHours": 2.0,
+    "PeakRate": 0.0,
+    "PeakRateUnit": "PerHour"
+  },
+  "Resilience": {
+    "MessageExpirationHours": 48.0,
+    "OutageHours": 24.0,
+    "ResidenceSeconds": 60.0,
+    "SafetyNetHoldTimeHours": 48.0,
+    "ShadowRedundancy": true,
+    "ReplayLagHours": 0.0,
+    "SpaceReclaimDays": 1.0,
+    "DrainTargetHours": 12.0
+  },
+  "Journaling": {
+    "Enabled": false,
+    "Scope": "Global",
+    "Percent": 100.0,
+    "Recipients": 1.0,
+    "OverheadKB": 4.0,
+    "Destination": "External",
+    "HeldDuringOutage": true
+  },
+  "Adjustment": {
+    "CpuPercent": 100.0,
+    "IoPercent": 100.0,
+    "MemoryAtRestGB": 0.0
+  },
+  "Storage": {
+    "QueueVolume": "Dedicated",
+    "MaxFillPercent": 80.0,
+    "IoOverheadPercent": 20.0,
+    "RoundingGB": 10.0,
+    "OsGB": 40.0,
+    "ExchangeBinariesGB": 15.0,
+    "DiagnosticLogsGB": 20.0,
+    "TransportLogsGB": 10.0,
+    "OtherTransportDataGB": 1.0
+  },
+  "Network": {
+    "LinkMbps": 1000.0,
+    "MaxUtilizationPercent": 70.0,
+    "ProtocolOverheadPercent": 5.0
+  },
+  "Compute": {
+    "MaxCpuPercent": 80.0,
+    "TargetProcessor": "",
+    "TargetSpecIntRatePerCore": 0.0,
+    "HypervisorOverheadPercent": 10.0,
+    "VcpuRatio": 2.0,
+    "SmtGainPercent": 20.0,
+    "MinCores": 4.0,
+    "EvenVcpu": true,
+    "RamMarginPercent": 10.0,
+    "MinRamGB": 8.0,
+    "MemoryReservedPercent": 100.0
+  },
+  "Physical": {
+    "SpecIntRate2017": 0.0,
+    "Cores": 0.0,
+    "DiskType": "10K RPM SAS 2.5\"",
+    "DiskSizeGB": 1200.0,
+    "SsdIops": 0.0,
+    "QueueRaid": "RAID-1/0",
+    "SystemRaid": "RAID-1"
+  },
+  "CalibrationPath": "",
+  "Calibration": null
+}

@@ -1,0 +1,44 @@
+name: Attest release provenance
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published release tag whose ZIP must be attested
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  attest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out released source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+
+      - name: Collect the published release ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          mkdir dist
+          version="${RELEASE_TAG#v}"
+          asset="TransportSizer-${version}.zip"
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir dist
+          test -s "dist/$asset"
+          test "$(find dist -maxdepth 1 -type f | wc -l)" -eq 1
+
+      - name: Attest the distributed ZIP
+        uses: actions/attest@v4
+        with:
+          subject-path: 'dist/*.zip'
