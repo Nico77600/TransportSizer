@@ -273,7 +273,7 @@ Pester 6.1 or later. The tests check the calculator cross-check (214.6 / 107.3 /
 
 ## Download and release integrity
 
-This 1.10.0 source is a publication candidate, not evidence of a published release. Once the maintainer publishes an immutable release, download its actual `TransportSizer-1.10.0.zip` from this repository's [releases](https://github.com/Nico77600/TransportSizer/releases), extract it and run `Invoke-TransportSizer.ps1`. The ZIP contains the runnable tool, reference data, calibration scripts, examples and documentation; it does not contain development history or generated reports.
+Download `TransportSizer-1.10.0.zip` from this repository's [releases](https://github.com/Nico77600/TransportSizer/releases), extract it and run `Invoke-TransportSizer.ps1`. The ZIP contains the runnable tool, reference data, calibration scripts, examples and documentation; it does not contain development history or generated reports.
 
 The release workflow attests the actual distributed ZIP, never a source-only substitute. Published immutable assets are not replaced: corrections use a new version. With GitHub CLI, verify the downloaded archive against this repository:
 
