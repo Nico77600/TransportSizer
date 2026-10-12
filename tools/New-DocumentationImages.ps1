@@ -38,7 +38,7 @@ if ($Calibration) {
 }
 
 foreach ($look in $Theme) {
-    $form = New-TsSizerForm -Scenario $loaded -Theme $look
+    $form = New-TsSizerForm -Scenario $loaded -OutputPath '.\reports' -Theme $look
     $window = $form.Form
     $window.WindowStartupLocation = 'Manual'
     $window.Left = -20000

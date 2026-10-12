@@ -32,3 +32,13 @@ Direct pushes, force pushes, and deletion of public main are prohibited. Do not 
 Keep secret scanning and push protection enabled. Do not routinely bypass alerts. Dependency scanning is not a replacement for the project's tests and analysis. Follow SECURITY.md for sensitive reports. Maintain versioned backups of public Git history, release assets, and settings outside the repository; keep an additional copy off the development machine.
 
 For a new public repository, configure these branch/tag protections and future-release immutability before the first release. Enable dependency graph, Dependabot alerts, secret scanning, push protection, and private vulnerability reporting. Personal-account repositories do not automatically inherit these settings. Automatic merges and automated dependency-update pull requests are not part of this baseline.
+
+## Proposed CI baseline
+
+Read `.github/ci.json`. Use the existing `Run-Tests.ps1` on both PowerShell editions and `tools\New-TsPackage.ps1` for packaging; do not change runtime behavior, measured data or version merely to align CI.
+
+The proposed required contexts are `Validate (PowerShell 7)` and `Validate (Windows PowerShell 5.1)`, from GitHub Actions (app ID 15368). Establish successful hosted runs before making them blocking. PSScriptAnalyzer diagnostics and CodeQL findings remain advisory; syntax, scan execution, tests and the package gate must succeed. CodeQL covers Actions and the production C# reader, not PowerShell.
+
+The advisory C# job uses manual compilation through `.github\scripts\Build-CodeQLProduction.ps1` and `.github\codeql\Production.proj`. It compiles every production `src\*.cs` recursively against the running PowerShell framework references, without NuGet restore or executing/loading the tool. Outputs stay outside the runtime package; do not distribute them. The build manifest checks source/reference inventories, but only the hosted CodeQL tracer/database diagnostics can establish complete extraction. This analysis-only PowerShell 7 build does not replace the existing Windows PowerShell 5.1 runtime tests.
+
+Actions are pinned to reviewed commit IDs; any pin update also needs an explicitly approved actions-policy update. Checkout must retain event-revision semantics, no persisted credentials, no `pull_request_target`, and the exact `Nico77600/TransportSizer` job guards. Release attestation requires actual immutable published ZIP assets; no fabricated release or source-only fallback.

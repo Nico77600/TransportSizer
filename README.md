@@ -283,6 +283,16 @@ gh attestation verify .\TransportSizer-1.10.0.zip --repo Nico77600/TransportSize
 
 To package a reviewed source checkout locally: `.\tools\New-TsPackage.ps1 -Destination C:\Packages\TransportSizer-1.10.0`. Both destination and ZIP must be new and outside the source directory. Script signing is not configured in this release; artifact provenance does not assert that a PowerShell script is signed.
 
+## CI and scanning
+
+The proposed CI runs the unchanged `Run-Tests.ps1` on PowerShell 7 and Windows PowerShell 5.1, with Pester 6.1.0 and PSScriptAnalyzer 1.25.0. PowerShell syntax and analyzer execution must succeed; analyzer diagnostics are advisory. The PowerShell 7 job also invokes the unchanged `tools\New-TsPackage.ps1` and checks the runtime inventory, version, exclusions and every ZIP entry hash. CI helpers under `.github\scripts` are excluded from the runtime package. Evidence is retained for seven days; no lab or publication credentials are used.
+
+CodeQL is advisory and covers GitHub Actions plus the real production C# reader `src\Sizer.LogReader.cs`. The C# job manually compiles all production sources against the running PowerShell framework references, without NuGet restore or executing the tool. The analysis-only build manifest checks the source/reference inventories; it does not replace the existing tests or packaging. **CodeQL does not support PowerShell**; complete extraction still needs confirmation from hosted tracer/database diagnostics and is not established by local compilation alone.
+
+All actions use reviewed full commit IDs and read-only checkout credentials. Pull requests test the event revision, never `pull_request_target`; copied forks cannot run privileged jobs under another repository identity. Required checks `Validate (PowerShell 7)` and `Validate (Windows PowerShell 5.1)` must first succeed on GitHub before the proposed protections are applied. No settings or release have been changed by preparing this candidate.
+
+The attestation workflow requires an actual published **immutable** release with ZIP assets. It never builds or runs repository code and never substitutes a source archive. Manual dispatch requires the default branch and an explicit existing tag. Attestation binds the downloaded ZIP bytes to this workflow; it does not establish their original build or script signing.
+
 ## Sources
 
 - Microsoft Learn: *Understanding back pressure* (Exchange 2016, 2019, SE); *Exchange Server 2019 and SE system requirements*; *Exchange Server virtualization*.

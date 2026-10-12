@@ -953,13 +953,13 @@ Describe 'Exchange Log Report import' {
         }
         $script:ElrHeader = @('First event', 'Last event', 'Duration', 'Status', 'Sender', 'Recipients', 'Recipient count', 'Delivered', 'Failed', 'Subject', 'Size (KB)', 'Direction', 'Servers', 'Events', 'SMTP sessions', 'Message ID', 'Route')
         $script:NewElrMessage = {
-            param([string]$Time, [string]$Status, [string]$Recipients, [int]$Count, $Size, [string]$Direction, [string]$Sender = 'app@fabrikam.com')
+            param([string]$Time, [string]$Status, [string]$Recipients, [int]$Count, $Size, [string]$Direction, [string]$Sender = 'app@fabrikam.test')
             @($Time, $Time, '1 s', $Status, $Sender, $Recipients, $Count, $Count, 0, 'Test; "quoted"', $Size, $Direction, 'REF-MAILBOX > EXMBX2', 'RECEIVE > DELIVER', 2, "<$([guid]::NewGuid())@test>", "$Time | REF-MAILBOX | SMTP Receive (Hub) | Accepted`n$Time | REF-MAILBOX | Tracking | RECEIVE")
         }
         $rows = [Collections.Generic.List[object]]::new()
         $rows.Add((& $script:NewElrMessage '2026-10-01 00:00:05' 'Delivered' 'u1@contoso.com' 1 50 'Incoming'))
         for ($i = 0; $i -lt 9; $i++) { $rows.Add((& $script:NewElrMessage ('2026-10-01 09:0{0}:00' -f $i) 'Delivered' 'u1@contoso.com' 1 50 'Incoming')) }
-        for ($i = 0; $i -lt 6; $i++) { $rows.Add((& $script:NewElrMessage ('2026-10-01 10:0{0}:00' -f $i) 'Relayed' 'a@fabrikam.com (Sent); b@fabrikam.com (Sent); c@northwind.com (Sent)' 3 100 'Originating')) }
+        for ($i = 0; $i -lt 6; $i++) { $rows.Add((& $script:NewElrMessage ('2026-10-01 10:0{0}:00' -f $i) 'Relayed' 'a@fabrikam.test (Sent); b@fabrikam.test (Sent); c@northwind.test (Sent)' 3 100 'Originating')) }
         for ($i = 0; $i -lt 4; $i++) { $rows.Add((& $script:NewElrMessage ('2026-10-01 11:0{0}:00' -f $i) 'Delivered' 'u1@contoso.com; u2@contoso.com' 2 20 'Originating')) }
         $rows.Add((& $script:NewElrMessage '2026-10-01 12:00:00' 'Relayed' 'archive@vault.example (Sent)' 1 104 'Originating' 'MicrosoftExchange329e71ec88ae4615bbc36ab6ce41109e@contoso.com'))
         $rows.Add((& $script:NewElrMessage '2026-10-01 13:00:00' 'Rejected (SMTP)' 'x@contoso.com (Rejected)' 1 '' 'Incoming (SMTP)'))
@@ -1034,10 +1034,10 @@ Describe 'Exchange Log Report import' {
         [void](New-Item -ItemType Directory -Path $edge -Force)
         $rows = @(
             (& $script:NewElrMessage '2026-10-01 08:00:00' 'Relayed' 'u1@contoso.com (Sent)' 1 40 'Incoming'),
-            (& $script:NewElrMessage '2026-10-01 08:10:00' 'Failed' 'x@fabrikam.com (Failed)' 1 60 'Originating')
+            (& $script:NewElrMessage '2026-10-01 08:10:00' 'Failed' 'x@fabrikam.test (Failed)' 1 60 'Originating')
         )
         Write-ElrCsv (Join-Path $edge 'ExchangeLogs-Messages.csv') $script:ElrHeader $rows
-        Write-ElrCsv (Join-Path $edge 'ExchangeLogs-SmtpDestinations.csv') @('Remote address', 'Sent') @(, @('mx.fabrikam.com', 1))
+        Write-ElrCsv (Join-Path $edge 'ExchangeLogs-SmtpDestinations.csv') @('Remote address', 'Sent') @(, @('mx.fabrikam.test', 1))
         $r = Import-TsLogReport -Path $edge
         $r.Role | Should -Be 'Edge'
         @($r.Flows | ForEach-Object { $_.Direction }) -join ',' | Should -Be 'Inbound,Outbound'
